@@ -204,7 +204,7 @@ def dbMoveInfo(self, moveName):
                             LEFT JOIN pokemon.movecategory AS mc ON m.movecategoryid = mc.movecategoryid
                             WHERE m.movename = '""" + moveName + "' AND m.generationid = " + gen)
         moveList=moveList[0]
-        if moveList[0][3]:
+        if 'True' in str(moveList[0][3]):
          moveContact = "C"
         else:
             moveContact = "NC"
