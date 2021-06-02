@@ -205,7 +205,7 @@ def dbMoveInfo(self, moveName):
                             WHERE m.movename = '""" + moveName + "' AND m.generationid = " + gen)
         moveList=moveList[0]
         if 'True' in str(moveList[0][3]):
-         moveContact = "C"
+            moveContact = "C"
         else:
             moveContact = "NC"
         info = str(moveList[0])+" ("+str(moveList[1])+", "+str(moveList[2])+", "+moveContact+") | PP: "+str(moveList[4])+" | Power: "+str(moveList[5])+" | Acc.: "+str(moveList[6])+" | Priority: "+str(moveList[7])+" | Summary: "+str(moveList[8])
@@ -214,7 +214,6 @@ def dbMoveInfo(self, moveName):
     #         moveList = executeSQL(f"SELECT m.movename, t.typename, mc.movecategoryname, m.movecontactflag, m.movepp, m.movepower, m.moveaccuracy, m.movepriority, m.movedescription FROM pokemon.move as m LEFT JOIN pokemon.type AS t ON m.typeid = t.typeid LEFT JOIN pokemon.movecategory AS mc ON m.movecategoryid = mc.movecategoryid WHERE LOWER(m.movename)='"+moveNoSpace+"' AND generationid="+gen)
     except:
         info = 'I could not find "' +moveName+'" in generation '+gen+'. Note that I prefer two separate words for older camelcase moves. (Use Bubble Beam, NOT BubbleBeam.).'
-    print(info)
     return info
 
 def fetchGame(self):
