@@ -10,10 +10,12 @@ The bot has the following commands available:
 - !game <game abbreviation>: Sets the game and generation using an abbreviation code.
   
  ![image](screens/game.PNG) 
+ ![image](screens/game2.PNG)
   
 - !move <move name>: Looks up a move name and returns all information about the move in the chat (name, pp, power, accuracy, contact/no contact, summary of effects).
   
- ![image](screens/move.PNG) 
+ ![image](screens/move.PNG)
+ ![image](screens/move2.PNG)
   
 - !mon <pokemon name>: Looks up a pokemon and returns all information about the pokemon in the chat (dex, name, BST, xp yield, evolution(s), learnset).
   
