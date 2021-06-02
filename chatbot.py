@@ -1,4 +1,4 @@
-#Copyright {yyyy} {name of copyright owner}
+#Copyright 2021 Brady Peneton
 
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -148,8 +148,10 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
                                     and more! https://docs.google.com/spreadsheets/d/1BcEslzyAT4H6ZI7W6cwlGfYPCAB-0db-wxclFoO2B78""")
 
         elif command == "commands":
-            c.privmsg(self.channel, "Available commands: !challenges, !ironmon, !mon <name>, !game <abbr>, !move <move>, !nature <nature>")
-
+            c.privmsg(self.channel, "Available commands: !challenges, !ironmon, !mon <name>, !game <abbr>, !move <move>, !nature <nature>, !botinfo")
+        
+        elif command == "botinfo":
+            c.privmsg(self.channel, "https://github.com/brdy1/brdybot")
         # The command was not recognized
         # else:
         #     c.privmsg(self.channel, "Did not understand command: " + command)
