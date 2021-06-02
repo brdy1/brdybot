@@ -8,28 +8,23 @@ The bot uses a PostgreSQL database with data scraped and taken from [Serebii.net
 # Bot
 The bot has the following commands available:
 - !game <game abbreviation>: Sets the game and generation using an abbreviation code.
-  - !game DP
   
  ![image](screens/game.PNG) 
   
 - !move <move name>: Looks up a move name and returns all information about the move in the chat (name, pp, power, accuracy, contact/no contact, summary of effects).
-  - !move acid
   
  ![image](screens/move.PNG) 
   
 - !mon <pokemon name>: Looks up a pokemon and returns all information about the pokemon in the chat (dex, name, BST, xp yield, evolution(s), learnset).
-  - !mon charizard
   
  ![image](screens/mon.PNG)
  ![image](screens/mon2.PNG) 
   
 - !nature <nature>: Looks up a nature name and returns the affected stats in the chat.
-  - !nature docile
   
  ![image](screens/nature.PNG) 
   
 - !ability <ability name>: Looks up an ability and returns a summary of the ability with the actual effects in the chat.
-  - !ability lightning rod
   
  ![image](screens/ability2.PNG) 
  ![image](screens/ability.PNG) 
