@@ -1,7 +1,7 @@
 # brdybot
-This is a bot adapted from chatbot-python-sample that I use for my Twitch channel (https://www.twitch.tv/brdy).
+This is a bot adapted from [chatbot-python-sample](https://github.com/twitchdev/chatbot-python-sample) that I use for my Twitch channel, twitch.tv/brdy.
 
-The bot uses a PostgreSQL database with data scraped and taken from Serebii.net, Bulbapedia, veekun, and pokemondb.net.
+The bot uses a PostgreSQL database with data scraped and taken from [Serebii.net](https://www.serebii.net), [Bulbapedia](https://bulbapedia.net), [veekun](https://github.com/veekun/pokedex), and [pokemondb.net](https://pokemondb.net/).
 
 The database is not available in this repo, but the table schema is as follows:
 
