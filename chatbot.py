@@ -47,6 +47,7 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         return
 
     def do_command(self, e, command, parameters):
+        url, headers, r = getAPIVariables(self)
         c = self.connection
         # procedure for the move command (fetching details of a pokemon move based on the currently selected generation).
         if command == "move":
@@ -63,27 +64,23 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
             #moveInfo = fetchMoveInfo(self, moveName)
             moveName = moveName.lower()
             moveInfo = dbMoveInfo(self, moveName)
-            url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
-            headers = {'Client-ID': self.client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
-            r = requests.get(url, headers=headers).json()
             c.privmsg(self.channel, moveInfo)
 
-        elif command == "gen":
-            allowedGens = ['RB', '1', 'GS', '2', 'RS', '3', 'DP', '4', 'BW', '5', 'XY', '6', 'SM', '7', 'SS', '8']
+        elif command == "game":
+            allowedGames = ['RB', 'Y', 'GS', 'C', 'RS', 'E', 'FRLG', 'DP', 'P', 'HGSS', 'BW', 'BW2', 'XY', 'ORAS', 'SM', 'USUM']
             if len(parameters) != 1:
-                c.privmsg(self.channel, "Incorrect usage. The !gen command requires one parameter - a two-letter abbreviation (RB, GS, RS, DP, BW, XY, SM, SS) or generation number.")
+                c.privmsg(self.channel, """Incorrect usage. The !gen command requires one parameter - 
+                                        an abbreviation (RB, Y, GS, C, RS, E, FRLG, DP, P, HGSS, BW, BW2, XY, SM, USUM).
+                                        Gen 8/SS is currently not supported, but it will be soon!""")
             try:
-                generation = parameters[0].upper()
+                game = parameters[0].upper()
             except:
                 pass
-            if generation in allowedGens:
-                url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
-                headers = {'Client-ID': self.client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
-                r = requests.get(url, headers=headers).json()
-                setGeneration(self, generation)
-                c.privmsg(self.channel, "Generation was set to " + generation + ".")
+            if game in allowedGames:
+                setGame(self, game)
+                c.privmsg(self.channel, "Game was set to " + game + ".")
             else:
-                c.privmsg(self.channel, "Generation " + generation + " does not exist.")
+                c.privmsg(self.channel, "Game '" + game + "' does not exist or is not supported.")
 
         elif command == "mon":
             if len(parameters) <1:
@@ -98,156 +95,334 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
                 monName = parameters[0]
             else:
                 c.privmsg(self.channel, "Something went wrong with the !mon command. Oops!")
-            url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
-            headers = {'Client-ID': self.client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
-            r = requests.get(url, headers=headers).json()
+            monName = monName.title()
             monInfo = fetchMonInfo(self, monName)
             c.privmsg(self.channel, monInfo)
 
+        elif command == "nature":
+            if len(parameters) <1:
+                c.privmsg(self.channel, "Incorrect usage. The !nature command requires the name of a nature to look up.")
+            elif len(parameters) > 1:
+                c.privmsg(self.channel, "Incorrect usage. The !nature command requires only the name of the nature to look up.")
+            elif parameters:
+                natureName = parameters[0]
+                natureInfo = fetchNature(self, natureName)
+                c.privmsg(self.channel, natureInfo)
+
+        elif command == "ability":
+            if len(parameters) <1:
+                c.privmsg(self.channel, "Incorrect usage. The !ability command requires the name of an ability to look up.")
+            elif len(parameters) > 1:
+                abilityName = ""
+                for parameter in parameters:
+                    abilityName += parameter + " "
+                #remove the extra space
+                abilityName = abilityName.strip()
+            elif parameters:
+                abilityName = parameters[0]
+            else:
+                c.privmsg(self.channel, "Something went wrong with the !mon command. Oops!")
+            abilityInfo = fetchAbility(self, abilityName)
+            c.privmsg(self.channel, abilityInfo)
+
         elif command == "ironmon":
-            url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
-            headers = {'CLient-ID': self.client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
-            r = requests.get(url, headers=headers).json()
             c.privmsg(self.channel, 'https://pastebin.com/L48bttfz')
 
         elif command == "challenges":
-            url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
-            headers = {'CLient-ID': self.client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
-            r = requests.get(url, headers=headers).json()
-            c.privmsg(self.channel, 'I haven\'t got far, but I\'m doing a host of challenges, including a Pokemon Ironmon challenge, Diablo 2, Slay the Spire, and more! https://docs.google.com/spreadsheets/d/1BcEslzyAT4H6ZI7W6cwlGfYPCAB-0db-wxclFoO2B78')
+            c.privmsg(self.channel, """I\'m challenging myself to complete various games,
+                                    including a Pokemon Ironmon challenge, Diablo 2, Slay the Spire,
+                                    and more! https://docs.google.com/spreadsheets/d/1BcEslzyAT4H6ZI7W6cwlGfYPCAB-0db-wxclFoO2B78""")
 
         elif command == "commands":
-            url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
-            headers = {'CLient-ID': self.client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
-            r = requests.get(url, headers=headers).json()
-            c.privmsg(self.channel, 'Available commands: !challenges, !ironmon, !mon <pokemon name>, !gen <gen#>, !move <move name>')
-
-        # elif command == "move":
-        #     url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
-        #     headers = {'Client-ID': self.client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
-        #     r = requests.get(url, headers=headers).json()
-        #     c.privmsg(self.channel, r['display_name'] + ' channel title is currently ' + r['status'])
+            c.privmsg(self.channel, "Available commands: !challenges, !ironmon, !mon <name>, !game <abbr>, !move <move>, !nature <nature>")
 
         # The command was not recognized
         # else:
         #     c.privmsg(self.channel, "Did not understand command: " + command)
 
+def getAPIVariables(self):
+    url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
+    headers = {'Client-ID': self.client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
+    r = requests.get(url, headers=headers).json()
+    return url, headers, r
+
 def main():
-    if len(sys.argv) != 5:
-        print("Usage: twitchbot <username> <client id> <token> <channel>")
-        sys.exit(1)
-
-    username  = sys.argv[1]
-    client_id = sys.argv[2]
-    token     = sys.argv[3]
-    channel   = sys.argv[4]
-
+    configFile = "../chatbot.ini"
+    config = configparser.ConfigParser()
+    config.read(configFile)
+    username  = config['chatbot']['username']
+    client_id = config['chatbot']['clientid']
+    token     = config['chatbot']['token']
+    channel   = config['chatbot']['channel']
     bot = TwitchBot(username, client_id, token, channel)
     bot.start()
+
+def fetchNature(self, natureName):
+    natureName = natureName.title()
+    allowedNatures = str(executeSQL("SELECT nature.naturename from pokemon.nature"))
+    if natureName in allowedNatures:
+        neutral = executeSQL("SELECT n.neutralnatureflag FROM pokemon.nature n WHERE n.naturename = '"+natureName+"'")
+        if 'True' in str(neutral):
+            natureInfo = natureName + " is a neutral nature."
+        elif 'False' in str(neutral):
+            raisedStat = executeSQL("SELECT s.statname FROM pokemon.nature n LEFT JOIN pokemon.stat s ON n.raisedstatid = s.statid WHERE n.naturename = '"+natureName+"'")
+            loweredStat = executeSQL("SELECT s.statname FROM pokemon.nature n LEFT JOIN pokemon.stat s ON n.loweredstatid = s.statid WHERE n.naturename = '"+natureName+"'")
+            natureInfo = "+"+str(raisedStat[0][0])+"/"+"-"+str(loweredStat[0][0])
+    else:
+        natureInfo = "Could not find info for "+natureName+"."
+    return natureInfo
+
+def fetchAbility(self, abilityName):
+    gen = fetchGeneration(self)
+    abilityName = abilityName.title()
+    allowedAbilities = str(executeSQL("SELECT ability.abilityname FROM pokemon.ability"))
+    if abilityName in allowedAbilities:
+        abilityTuple = executeSQL("""SELECT ga.abilitydescription FROM pokemon.generationability ga
+                                    LEFT JOIN pokemon.ability ab ON ga.abilityid = ab.abilityid
+                                    WHERE ab.abilityname = '"""+abilityName+"' AND ga.generationid <= """
+                                    +gen+" ORDER BY ga.generationid DESC LIMIT 1")
+        abilityInfo = abilityName + " (Gen "+gen+"): " + abilityTuple[0][0]
+    else:
+        abilityInfo = "Could not find info for "+abilityName+"."
+    return abilityInfo
 
 def fetchGeneration(self):
     config = configparser.ConfigParser()
     channel = self.channel.split('#')[1]
-    configFilename = "../chatbot.ini"
+    configFilename = "../"+channel+".ini"
     config.read(configFilename)
     generation = config[channel]["generation"]
     return generation
 
 def dbMoveInfo(self, moveName):
     gen = fetchGeneration(self)
-    moveList = executeSQL(f"SELECT m.movename, t.typename, mc.movecategoryname, m.movecontactflag, m.movepp, m.movepower, m.moveaccuracy, m.movepriority, m.movedescription FROM pokemon.move as m LEFT JOIN pokemon.type AS t ON m.typeid = t.typeid LEFT JOIN pokemon.movecategory AS mc ON m.movecategoryid = mc.movecategoryid WHERE LOWER(m.movename)='"+moveName+"' AND generationid="+gen)
+    moveName = moveName.title()
     try:
-        if moveList[3]:
-            moveContact = "C"
+        moveList = executeSQL("""SELECT m.movename, t.typename, mc.movecategoryname, m.movecontactflag,
+                            m.movepp, m.movepower, m.moveaccuracy, m.movepriority, m.movedescription, m.generationid
+                            FROM pokemon.move as m LEFT JOIN pokemon.type AS t ON m.typeid = t.typeid
+                            LEFT JOIN pokemon.movecategory AS mc ON m.movecategoryid = mc.movecategoryid
+                            WHERE m.movename = '""" + moveName + "' AND m.generationid = " + gen)
+        moveList=moveList[0]
+        if moveList[0][3]:
+         moveContact = "C"
         else:
             moveContact = "NC"
         info = str(moveList[0])+" ("+str(moveList[1])+", "+str(moveList[2])+", "+moveContact+") | PP: "+str(moveList[4])+" | Power: "+str(moveList[5])+" | Acc.: "+str(moveList[6])+" | Priority: "+str(moveList[7])+" | Summary: "+str(moveList[8])
     # except TypeError:
     #     try:
-            
     #         moveList = executeSQL(f"SELECT m.movename, t.typename, mc.movecategoryname, m.movecontactflag, m.movepp, m.movepower, m.moveaccuracy, m.movepriority, m.movedescription FROM pokemon.move as m LEFT JOIN pokemon.type AS t ON m.typeid = t.typeid LEFT JOIN pokemon.movecategory AS mc ON m.movecategoryid = mc.movecategoryid WHERE LOWER(m.movename)='"+moveNoSpace+"' AND generationid="+gen)
-    except TypeError:
+    except:
         info = 'I could not find "' +moveName+'" in generation '+gen+'. Note that I prefer two separate words for older camelcase moves. (Use Bubble Beam, NOT BubbleBeam.).'
     print(info)
     return info
 
-def fetchMoveInfo(self, moveName):
-    gen = fetchGeneration(self)
-    moveFilename = "../moves"+gen+".xlsx"
-    df = pd.read_excel(moveFilename)
-    moveName = (moveName).title()
-    try:
-        move = df.loc[df['name'] == moveName]
-        moveName = move.iloc[0]['name']
-        moveType = move.iloc[0]['type']
-        pp = str(move.iloc[0]['pp'])
-        category = str(move.iloc[0]['category'])
-        power = str(move.iloc[0]['power'])
-        accuracy = str(move.iloc[0]['accuracy'])
-        description = move.iloc[0]['description']
-        priority = str(move.iloc[0]['priority'])
-        info = moveName+" ("+moveType+", "+category+") "+"| PP: "+pp+" | Power: "+power+" | Accuracy: "+accuracy+" | Priority: "+priority+" | Description: "+description
-    except:
-        info = 'I could not find move "' + moveName + '" in generation ' + gen + '.'
-    return info
+def fetchGame(self):
+    config = configparser.ConfigParser()
+    channel = self.channel.split('#')[1]
+    configFilename = "../"+channel+".ini"
+    config.read(configFilename)
+    game = config[channel]["game"]
+    return game
 
 def fetchMonInfo(self, monName):
     gen = fetchGeneration(self)
-    monFilename = "../pokemondata.xlsx"
+    game = fetchGame(self)
+    moveList = "Learns moves at "
+    #note that I'm going to need to embed all of this in a 'try' and then return a different string upon error (nonetype,etc.)
+    #fetch the info for a variant pokemon (mega, alolan, etc.)
     try:
-        df = pd.read_excel(monFilename, gen)
-        monName = monName.title()
-        pokemon = df.loc[df['pokemonName'] == monName]
-        dex = "#" + str(pokemon.iloc[0]['pokedex_number'])
-        name = str(pokemon.iloc[0]['pokemonName']).title()
-        type1 = str(pokemon.iloc[0]['Type1']).title()
-        type2 = str(pokemon.iloc[0]['Type2']).title()
-        if type2 != 'Nan':
-            types = str(type1) + "/" + str(type2)
+        #check to see if the pokemon is a variant.
+        monDexNameTypes = executeSQL("""SELECT DISTINCT mon.pokemonpokedexnumber,pv.pokemonvariantname,pv.pokemonvariantid,ty.typename 
+                                        FROM pokemon.pokemonvariant pv LEFT JOIN pokemon.pokemon mon ON pv.pokemonid = mon.pokemonid 
+                                        LEFT JOIN pokemon.pokemontype pt ON pv.pokemonvariantid = pt.pokemonvariantid 
+                                        LEFT JOIN pokemon.type ty ON pt.typeid = ty.typeid
+                                        WHERE pt.generationid = """+gen+
+                                        " AND pv.pokemonvariantname = '"""+monName+
+                                        "' AND pt.pokemonvariantid IS NOT NULL")
+        #if it isn't a variant, do all of this ---
+        if monDexNameTypes == []:
+            #if no variant, search for a regular mon with fewer joins
+            monDexNameTypes = executeSQL("""SELECT DISTINCT mon.pokemonpokedexnumber,mon.pokemonname,ty.typename,mon.pokemonid
+                                            FROM pokemon.pokemon mon LEFT JOIN pokemon.pokemontype pt 
+                                            ON mon.pokemonid = pt.pokemonid LEFT JOIN pokemon.type ty 
+                                            ON pt.typeid = ty.typeid 
+                                            WHERE mon.pokemonname = '"""+monName+"' AND pt.pokemonvariantid IS NULL")
+            #pull the pokemon pokedex number from the results
+            dex = str(monDexNameTypes[0][0])
+            #pull the id of the pokemon from the pokemon table for later queries
+            id = str(monDexNameTypes[0][3])
+            #retrieve and calculate the BST
+            monBST = executeSQL("""SELECT SUM(ps.pokemonstatvalue) bst,ps.generationid gen FROM pokemon.pokemonstat ps
+                                    LEFT JOIN pokemon.pokemon mon ON ps.pokemonid = mon.pokemonid
+                                    WHERE mon.pokemonpokedexnumber ="""+dex+""" AND ps.pokemonvariantid IS NULL AND ps.generationid <= """+gen+
+                                    " GROUP BY gen ORDER BY gen DESC LIMIT 1")
+            #if there is more than one type in the db, store as (Type1/Type2)
+            if len(monDexNameTypes) > 1:
+                types = "("+str(monDexNameTypes[0][2])+"/"+str(monDexNameTypes[1][2])+")"
+            #otherwise, store as (Type)
+            else:
+                types = "("+str(monDexNameTypes[0][2])+")"
+            moves = executeSQL("""SELECT DISTINCT mv.movename,pm.pokemonmovelevel FROM pokemon.pokemonmove pm 
+                                    LEFT JOIN pokemon.move mv ON pm.moveid = mv.moveid 
+                                    LEFT JOIN pokemon.gamegroup gg ON pm.gamegroupid = gg.gamegroupid 
+                                    WHERE pm.pokemonid ="""+id+""" AND pokemonmovelevel > 1 
+                                    AND gg.gamegroupabbreviation ='"""+game+"""' 
+                                    ORDER BY pm.pokemonmovelevel ASC""")
+            xp = executeSQL("""SELECT DISTINCT xp.experienceyieldvalue,xp.generationid FROM pokemon.pokemonexperienceyield xp 
+                                LEFT JOIN pokemon.pokemon mon ON xp.pokemonid = mon.pokemonid
+                                WHERE mon.pokemonid ="""+id+""" AND xp.generationid <= """+gen+""" 
+                                AND xp.pokemonvariantid IS NULL
+                                ORDER BY generationid ASC LIMIT 1""")
+            xp=str(xp[0][0])
+            evoArray = executeSQL("""SELECT DISTINCT mon.pokemonname, pel.pokemonevolutionlevel,
+                                    i.itemname, l.locationname, pe.evolutiontypeid, pes.pokemonevolutionuniquestring, m.movename, gg.generationid
+                                    FROM pokemon.pokemonevolution pe
+                                    LEFT JOIN pokemon.pokemon mon ON pe.targetpokemonid = mon.pokemonid
+                                    LEFT JOIN pokemon.pokemonevolutionlevel pel ON pe.pokemonevolutionid = pel.pokemonevolutionid
+                                    LEFT JOIN pokemon.pokemonevolutionmove pem ON pe.pokemonevolutionid = pem.pokemonevolutionid
+                                    LEFT JOIN pokemon.move m ON pem.moveid = m.moveid
+                                    LEFT JOIN pokemon.pokemonevolutionitem pei ON pe.pokemonevolutionid = pei.pokemonevolutionid
+                                    LEFT JOIN pokemon.item i ON pei.itemid = i.itemid
+                                    LEFT JOIN pokemon.pokemonevolutionlocation ploc ON pe.pokemonevolutionid = ploc.pokemonevolutionid
+                                    LEFT JOIN pokemon.location l ON ploc.locationid = l.locationid
+                                    LEFT JOIN pokemon.gamegroup gg ON pe.gamegroupid = gg.gamegroupid
+                                    LEFT JOIN pokemon.pokemonevolutionstring pes ON pe.pokemonevolutionid = pes.pokemonevolutionid
+                                    WHERE pe.basepokemonid = """+id+""" AND gg.generationid <="""+gen+""" ORDER BY generationid ASC LIMIT 1""")
+            evoInfo = getEvoInfo(evoArray)
+            #LEFT JOIN pokemon.pokemonvariant pv ON pe.targetpokemonvariantid = pv.pokemonvariantid
         else:
-            types = type1
-        capture = str(pokemon.iloc[0]['capturePercent'])
-        levelRate = str(pokemon.iloc[0]['levelingRate'])
-        bst = str(pokemon.iloc[0]['baseStatTotal'])
-        if gen == 'RB':
-            stats = str(pokemon.iloc[0]['hitPoints']) + " HP, " + str(pokemon.iloc[0]['attack']) + " Atk, " + str(pokemon.iloc[0]['defense']) + " Def, " + str(pokemon.iloc[0]['specialAttack']) + " Spec, " + str(pokemon.iloc[0]['speed']) + " Spe"
-        else:
-            stats = str(pokemon.iloc[0]['hitPoints']) + " HP, " + str(pokemon.iloc[0]['attack']) + " Atk, " + str(pokemon.iloc[0]['defense']) + " Def, " + str(pokemon.iloc[0]['specialAttack']) + " SpAtk, " + str(pokemon.iloc[0]['specialDefense']) + " SpDef, " + str(pokemon.iloc[0]['speed']) + " Spe"
-        xpyield = str(pokemon.iloc[0]['expYield'])
-        monInfo = dex + " " + name + " (" + types + ") | BST: " + bst + " | Capture %: " + capture + " | XP: " + xpyield + " | Lvl Rate: " + levelRate + " | Stats: " + stats
+            #for DB purposes, the variantid is the unique identifier of the pokemon.
+            #once we know this, we can use it to easily fetch BST, moves, and other attributes  
+            print(monDexNameTypes)
+            variant = str(monDexNameTypes[0][2])
+            #fetch move names + move levels for the pokemon in the generation, not including starting moves (lvl 1) and TM moves
+            moves = executeSQL("""SELECT DISTINCT mv.movename,pm.pokemonmovelevel FROM pokemon.pokemonmove pm 
+                                    LEFT JOIN pokemon.move mv ON pm.moveid = mv.moveid 
+                                    LEFT JOIN pokemon.gamegroup gg ON pm.gamegroupid = gg.gamegroupid 
+                                    WHERE pm.pokemonvariantid ="""+variant+""" AND pokemonmovelevel > 1 
+                                    AND gg.gamegroupabbreviation ='"""+game+"""' 
+                                    ORDER BY pm.pokemonmovelevel ASC""")
+            monBST = executeSQL("""SELECT SUM(ps.pokemonstatvalue) bst,ps.generationid gen FROM pokemon.pokemonstat ps
+                                    LEFT JOIN pokemon.pokemonvariant pv ON ps.pokemonvariantid = pv.pokemonvariantid
+                                    WHERE pv.pokemonvariantid ="""+variant+""" AND ps.generationid <= """+gen+
+                                    " GROUP BY gen ORDER BY gen DESC LIMIT 1")
+            xp = executeSQL("""SELECT DISTINCT xp.experienceyieldvalue,xp.generationid FROM pokemon.pokemonexperienceyield xp 
+                                LEFT JOIN pokemon.pokemonvariant pv ON xp.pokemonvariantid = pv.pokemonvariantid
+                                WHERE pv.pokemonvariantid ="""+variant+""" AND xp.generationid <= """+gen+"""
+                                ORDER BY generationid ASC LIMIT 1
+            """)
+            xp=str(xp[0][0])
+            evoArray = executeSQL("""SELECT DISTINCT mon.pokemonvariantname, pel.pokemonevolutionlevel,
+                                    i.itemname, l.locationname, pe.evolutiontypeid, pes.pokemonevolutionuniquestring, m.movename, gg.generationid
+                                    FROM pokemon.pokemonevolution pe
+                                    LEFT JOIN pokemon.pokemonvariant mon ON pe.targetpokemonvariantid = mon.pokemonvariantid
+                                    LEFT JOIN pokemon.pokemonevolutionlevel pel ON pe.pokemonevolutionid = pel.pokemonevolutionid
+                                    LEFT JOIN pokemon.pokemonevolutionmove pem ON pe.pokemonevolutionid = pem.pokemonevolutionid
+                                    LEFT JOIN pokemon.move m ON pem.moveid = m.moveid
+                                    LEFT JOIN pokemon.pokemonevolutionitem pei ON pe.pokemonevolutionid = pei.pokemonevolutionid
+                                    LEFT JOIN pokemon.item i ON pei.itemid = i.itemid
+                                    LEFT JOIN pokemon.pokemonevolutionlocation ploc ON pe.pokemonevolutionid = ploc.pokemonevolutionid
+                                    LEFT JOIN pokemon.location l ON ploc.locationid = l.locationid
+                                    LEFT JOIN pokemon.gamegroup gg ON pe.gamegroupid = gg.gamegroupid
+                                    LEFT JOIN pokemon.pokemonevolutionstring pes ON pe.pokemonevolutionid = pes.pokemonevolutionid
+                                    WHERE pe.basepokemonvariantid = """+variant+""" AND gg.generationid <="""+gen+""" ORDER BY generationid ASC LIMIT 1""")
+            evoInfo = getEvoInfo(evoArray)
+            #if the pokemon has more than one type, store the types as a string surrounded by parens with a '/' between
+            if len(monDexNameTypes) > 1:
+                types = "("+str(monDexNameTypes[0][3])+"/"+str(monDexNameTypes[1][3])+")"
+            #otherwise, store the type as a string with parens
+            else:
+                types = "("+str(monDexNameTypes[0][3])+")"
+        #fetch the list of move levels and store them in a str var
+        for move in moves:
+                moveList += str(move[1])+", "
+        moveList = moveList[0:len(moveList)-2]
+        name = str(monDexNameTypes[0][1])
+        print(str(monDexNameTypes))
+        dex = str(monDexNameTypes[0][0])
+        print("BST:"+str(monBST))
+        monBST = str(monBST[0][0])
+        monInfo = "#"+dex+" "+name+" "+types+" | XP: "+xp+" | BST: "+monBST+" | "+evoInfo+" | "+moveList
     except:
-       monInfo = "I could not find " + monName + " in generation " + gen + "."
+        monInfo = "I was not able to find " +monName+" in generation "+gen+"."
     return monInfo
 
-def setGeneration(self, generation):
-    generation = generation.upper()
-    if generation == "RB":
-        generation = 1
-    elif generation == "GS":
-        generation = 2
-    elif generation == "RS":
-        generation = 3
-    elif generation == "DP":
-        generation = 4
-    elif generation == "BW":
-        generation = 5
-    elif generation == "XY":
-        generation = 6
-    elif generation == "SM":
-        generation = 7
-    elif generation == "SS":
-        generation = 8
-    config = configparser.ConfigParser()
+def getEvoInfo(evoArray):
+            if evoArray == []:
+                evoInfo = "Does not evolve"
+            else:
+                evoMon = str(evoArray[0][0])
+                evoLevel = str(evoArray[0][1])
+                evoItem = str(evoArray[0][2])
+                evoLocation = str(evoArray[0][3])
+                evoType = evoArray[0][4]
+                evoUnique = str(evoArray[0][5])
+                evoMove = str(evoArray[0][6])
+                evoInfo = "Evolves into " + evoMon
+                if evoType == 2 or evoType == 11:
+                    evoInfo += " via trade"
+                elif evoType == 3:
+                    evoInfo += " via high friendship"
+                elif evoType == 12:
+                    evoInfo += " as a female "
+                elif evoType == 13:
+                    evoInfo += " as a male "
+                elif evoType == 16:
+                    evoInfo += " during the day"
+                elif evoType == 17:
+                    evoInfo += " at night"
+                elif evoType == 20:
+                    evoInfo += " in the rain"
+                elif evoType == 21:
+                    evoInfo += " via high beauty"
+                if not evoLevel == 'None':
+                    evoInfo += " at level "+evoLevel
+                if not evoItem == 'None':
+                    if evoType == 4:
+                        evoInfo += " after being exposed to a " + evoItem
+                    elif evoType == 10 or evoType == 11:
+                        evoInfo += " while holding a " + evoItem
+                if not evoLocation == 'None':
+                    evoInfo += " at the " + evoLocation
+                if not evoMove == 'None':
+                    evoInfo += " while knowing " + evoMove
+                if not evoUnique == 'None':
+                    evoInfo += ": " + evoUnique
+            return evoInfo
+
+def setGame(self, game):
+    game = game.upper()
     channel = self.channel.split('#')[1]
+    config = configparser.ConfigParser()
+    if game == "RB" or game == "Y":
+        generation = 1
+    elif game == "GS" or game == "C":
+        generation = 2
+    elif game == "RS" or game == "E" or game == "FRLG":
+        generation = 3
+    elif game == "DP" or game == "P" or game == "HGSS":
+        generation = 4
+    elif game == "BW" or game == "BW2":
+        generation = 5
+    elif game == "XY" or game == "ORAS":
+        generation = 6
+    elif game == "SM" or game == "USUM" or game == "LG":
+        generation = 7
+    elif game == "SS":
+        generation = 8
+    else:
+        pass
     config[channel] = {
-        "ClientID": self.client_id,
-        "Generation": generation
+        "clientid": self.client_id,
+        "generation": generation,
+        "game": game
     }
-    filename = channel + ".ini"
+    filename = "../" + channel + ".ini"
     with open(filename, 'w+') as configfile:
         config.write(configfile)
 
-def databaseConfig(configfile="chatbot.ini",section="Database"):
+def databaseConfig(configfile="../chatbot.ini",section="database"):
     config = configparser.ConfigParser()
     config.read(configfile)
     db = {}
@@ -266,7 +441,8 @@ def executeSQL(sql):
     conn = psycopg2.connect(**params)
     with conn.cursor() as cur:
         cur.execute(sql)
-        result = cur.fetchone()
+        print("Executing: "+sql)
+        result = cur.fetchall()
     return result
 
 if __name__ == "__main__":
