@@ -12,12 +12,12 @@ The bot has the following commands available:
  ![image](screens/game.PNG) 
  ![image](screens/game2.PNG)
   
-- !move <move name>: Looks up a move name and returns all information about the move in the chat (name, pp, power, accuracy, contact/no contact, summary of effects).
+- !move <move name>: Looks up a move name and returns all generation-specific information about the move in the chat (name, pp, power, accuracy, category, contact/no contact, summary of effects,etc.).
   
  ![image](screens/move.PNG)
  ![image](screens/move2.PNG)
   
-- !mon <pokemon name>: Looks up a pokemon and returns all information about the pokemon in the chat (dex, name, BST, xp yield, evolution(s), learnset).
+- !mon <pokemon name>: Looks up a pokemon and returns all game-specific information about the pokemon in the chat (dex, name, type, BST, xp yield, evolution(s), learnset).
   
  ![image](screens/mon.PNG)
  ![image](screens/mon2.PNG) 
@@ -26,7 +26,7 @@ The bot has the following commands available:
   
  ![image](screens/nature.PNG) 
   
-- !ability <ability name>: Looks up an ability and returns a summary of the ability with the actual effects in the chat.
+- !ability <ability name>: Looks up an ability and returns a generation-specific summary of the ability with a description of its effects in the chat.
   
  ![image](screens/ability2.PNG) 
  ![image](screens/ability.PNG) 
