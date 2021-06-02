@@ -12,7 +12,7 @@ The bot has the following commands available:
  ![image](screens/game.PNG) 
  ![image](screens/game2.PNG)
   
-- !move <move name>: Looks up a move name and returns all generation-specific information about the move in the chat (name, pp, power, accuracy, category, contact/no contact, summary of effects,etc.).
+- !move <move name>: Looks up a move name and returns all generation-specific information about the move in the chat (name, pp, power, accuracy, category, contact/no contact, summary of effects, etc.).
   
  ![image](screens/move.PNG)
  ![image](screens/move2.PNG)
