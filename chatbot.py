@@ -18,6 +18,7 @@ import requests
 import pandas as pd
 import psycopg2
 import configparser
+import math
 
 
 class TwitchBot(irc.bot.SingleServerIRCBot):
@@ -143,18 +144,13 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
             c.privmsg(self.channel, 'https://pastebin.com/L48bttfz')
 
         elif command == "challenges":
-            c.privmsg(self.channel, """I\'m challenging myself to complete various games,
-                                    including a Pokemon Ironmon challenge, Diablo 2, Slay the Spire,
-                                    and more! https://docs.google.com/spreadsheets/d/1BcEslzyAT4H6ZI7W6cwlGfYPCAB-0db-wxclFoO2B78""")
+            c.privmsg(self.channel, """I'm challenging myself to complete various games, including a Pokemon Ironmon challenge, Diablo 2, Slay the Spire, and more! https://docs.google.com/spreadsheets/d/1BcEslzyAT4H6ZI7W6cwlGfYPCAB-0db-wxclFoO2B78""")
 
         elif command == "commands":
             c.privmsg(self.channel, "Available commands: !challenges, !ironmon, !mon <name>, !game <abbr>, !move <move>, !nature <nature>, !botinfo")
         
         elif command == "botinfo":
             c.privmsg(self.channel, "https://github.com/brdy1/brdybot")
-        # The command was not recognized
-        # else:
-        #     c.privmsg(self.channel, "Did not understand command: " + command)
 
 def getAPIVariables(self):
     url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
@@ -179,11 +175,11 @@ def fetchNature(self, natureName):
     if natureName in allowedNatures:
         neutral = executeSQL("SELECT n.neutralnatureflag FROM pokemon.nature n WHERE n.naturename = '"+natureName+"'")
         if 'True' in str(neutral):
-            natureInfo = natureName + " is a neutral nature."
+            natureInfo  = natureName + " is a neutral nature."
         elif 'False' in str(neutral):
-            raisedStat = executeSQL("SELECT s.statname FROM pokemon.nature n LEFT JOIN pokemon.stat s ON n.raisedstatid = s.statid WHERE n.naturename = '"+natureName+"'")
+            raisedStat  = executeSQL("SELECT s.statname FROM pokemon.nature n LEFT JOIN pokemon.stat s ON n.raisedstatid = s.statid WHERE n.naturename = '"+natureName+"'")
             loweredStat = executeSQL("SELECT s.statname FROM pokemon.nature n LEFT JOIN pokemon.stat s ON n.loweredstatid = s.statid WHERE n.naturename = '"+natureName+"'")
-            natureInfo = "+"+str(raisedStat[0][0])+"/"+"-"+str(loweredStat[0][0])
+            natureInfo  = "+"+str(raisedStat[0][0])+"/"+"-"+str(loweredStat[0][0])
     else:
         natureInfo = "Could not find info for "+natureName+"."
     return natureInfo
@@ -258,11 +254,12 @@ def fetchMonInfo(self, monName):
         #if it isn't a variant, do all of this ---
         if monDexNameTypes == []:
             #if no variant, search for a regular mon with fewer joins
-            monDexNameTypes = executeSQL("""SELECT DISTINCT mon.pokemonpokedexnumber,mon.pokemonname,ty.typename,mon.pokemonid
+            monDexNameTypes = executeSQL("""SELECT DISTINCT mon.pokemonpokedexnumber,mon.pokemonname,ty.typename,mon.pokemonid,pt.generationid gen
                                             FROM pokemon.pokemon mon LEFT JOIN pokemon.pokemontype pt 
                                             ON mon.pokemonid = pt.pokemonid LEFT JOIN pokemon.type ty 
                                             ON pt.typeid = ty.typeid 
-                                            WHERE mon.pokemonname = '"""+monName+"' AND pt.pokemonvariantid IS NULL")
+                                            WHERE pt.generationid <= """+gen+""" 
+                                            AND mon.pokemonname = '"""+monName+"'AND pt.pokemonvariantid IS NULL ORDER BY gen DESC LIMIT 2")
             #pull the pokemon pokedex number from the results
             dex = str(monDexNameTypes[0][0])
             #pull the id of the pokemon from the pokemon table for later queries
@@ -288,7 +285,7 @@ def fetchMonInfo(self, monName):
                                 LEFT JOIN pokemon.pokemon mon ON xp.pokemonid = mon.pokemonid
                                 WHERE mon.pokemonid ="""+id+""" AND xp.generationid <= """+gen+""" 
                                 AND xp.pokemonvariantid IS NULL
-                                ORDER BY generationid ASC LIMIT 1""")
+                                ORDER BY generationid DESC LIMIT 1""")
             xp=str(xp[0][0])
             evoArray = executeSQL("""SELECT DISTINCT mon.pokemonname, pel.pokemonevolutionlevel,
                                     i.itemname, l.locationname, pe.evolutiontypeid, pes.pokemonevolutionuniquestring, m.movename, gg.generationid
@@ -305,6 +302,15 @@ def fetchMonInfo(self, monName):
                                     LEFT JOIN pokemon.pokemonevolutionstring pes ON pe.pokemonevolutionid = pes.pokemonevolutionid
                                     WHERE pe.basepokemonid = """+id+""" AND gg.generationid <="""+gen+""" ORDER BY generationid ASC LIMIT 1""")
             evoInfo = getEvoInfo(evoArray)
+            captureRate = executeSQL("""SELECT DISTINCT mon.pokemoncapturerate FROM pokemon.pokemon mon
+                                    WHERE mon.pokemonid = """+id+" LIMIT 1")
+            captureRate = getCaptureRate(captureRate)
+            growthRate = executeSQL("""SELECT DISTINCT lr.levelingratename FROM pokemon.pokemon mon
+                                        LEFT JOIN pokemon.levelingrate lr ON mon.levelingrateid = lr.levelingrateid
+                                        WHERE mon.pokemonid = """+id+""" LIMIT 1
+            """)
+            print(str(growthRate))
+            growthRate = str(growthRate[0][0])
             #LEFT JOIN pokemon.pokemonvariant pv ON pe.targetpokemonvariantid = pv.pokemonvariantid
         else:
             #for DB purposes, the variantid is the unique identifier of the pokemon.
@@ -325,7 +331,7 @@ def fetchMonInfo(self, monName):
             xp = executeSQL("""SELECT DISTINCT xp.experienceyieldvalue,xp.generationid FROM pokemon.pokemonexperienceyield xp 
                                 LEFT JOIN pokemon.pokemonvariant pv ON xp.pokemonvariantid = pv.pokemonvariantid
                                 WHERE pv.pokemonvariantid ="""+variant+""" AND xp.generationid <= """+gen+"""
-                                ORDER BY generationid ASC LIMIT 1
+                                ORDER BY generationid DESC LIMIT 1
             """)
             xp=str(xp[0][0])
             evoArray = executeSQL("""SELECT DISTINCT mon.pokemonvariantname, pel.pokemonevolutionlevel,
@@ -343,6 +349,17 @@ def fetchMonInfo(self, monName):
                                     LEFT JOIN pokemon.pokemonevolutionstring pes ON pe.pokemonevolutionid = pes.pokemonevolutionid
                                     WHERE pe.basepokemonvariantid = """+variant+""" AND gg.generationid <="""+gen+""" ORDER BY generationid ASC LIMIT 1""")
             evoInfo = getEvoInfo(evoArray)
+            captureRate = executeSQL("""SELECT DISTINCT mon.pokemoncapturerate FROM pokemon.pokemon mon
+                                    LEFT JOIN pokemon.pokemonvariant pv 
+                                    WHERE pv.pokemonvariantid = """+variant+" LIMIT 1")
+            captureRate = getCaptureRate(captureRate)
+            growthRate = executeSQL("""SELECT DISTINCT lr.levelingratename FROM pokemon.pokemon mon
+                                        LEFT JOIN pokemon.levelingrate lr ON mon.levelingrateid = lr.levelingrateid
+                                        LEFT JOIN pokemon.pokemonvariant pv ON mon.pokemonid = pv.pokemonid
+                                        WHERE pv.pokemonvariantid = """+variant+""" LIMIT 1
+            """)
+            print(str(growthRate))
+            growthRate = str(growthRate[0][0])
             #if the pokemon has more than one type, store the types as a string surrounded by parens with a '/' between
             if len(monDexNameTypes) > 1:
                 types = "("+str(monDexNameTypes[0][3])+"/"+str(monDexNameTypes[1][3])+")"
@@ -358,10 +375,17 @@ def fetchMonInfo(self, monName):
         dex = str(monDexNameTypes[0][0])
         print("BST:"+str(monBST))
         monBST = str(monBST[0][0])
-        monInfo = "#"+dex+" "+name+" "+types+" | XP: "+xp+" | BST: "+monBST+" | "+evoInfo+" | "+moveList
+        monInfo = "#"+dex+" "+name+" "+types+" | XP: "+xp+" | Catch: "+ captureRate + "% | BST: "+monBST+" | Growth: "+growthRate+" | "+evoInfo+" | "+moveList
     except:
         monInfo = "I was not able to find " +monName+" in generation "+gen+"."
     return monInfo
+
+def getCaptureRate(captureRate):
+    captureRate = captureRate[0][0]
+    captureRate = 0.0000000000566758779982193 * math.pow(captureRate,5) - 0.0000000427601042779669*math.pow(captureRate,4) + 0.0000125235963016363*math.pow(captureRate,3) - 0.00191121035271638*math.pow(captureRate,2) + 0.311407303213974*captureRate + 0.846589688792571
+    captureRate = round(captureRate, 2)
+    captureRate = str(captureRate)
+    return captureRate
 
 def getEvoInfo(evoArray):
             if evoArray == []:
