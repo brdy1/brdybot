@@ -221,11 +221,8 @@ def dbMoveInfo(self, moveName):
         else:
             moveContact = "NC"
         info = str(moveList[0])+" ("+str(moveList[1])+", "+str(moveList[2])+", "+moveContact+") | PP: "+str(moveList[4])+" | Power: "+str(moveList[5])+" | Acc.: "+str(moveList[6])+" | Priority: "+str(moveList[7])+" | Summary: "+str(moveList[8])
-    # except TypeError:
-    #     try:
-    #         moveList = executeSQL(f"SELECT m.movename, t.typename, mc.movecategoryname, m.movecontactflag, m.movepp, m.movepower, m.moveaccuracy, m.movepriority, m.movedescription FROM pokemon.move as m LEFT JOIN pokemon.type AS t ON m.typeid = t.typeid LEFT JOIN pokemon.movecategory AS mc ON m.movecategoryid = mc.movecategoryid WHERE LOWER(m.movename)='"+moveNoSpace+"' AND generationid="+gen)
     except:
-        info = 'I could not find "' +moveName+'" in generation '+gen+'. Note that I prefer two separate words for older camelcase moves. (Use Bubble Beam, NOT BubbleBeam.).'
+        info = 'I could not find "' +moveName+'" in generation '+gen+'(I prefer Bubble Beam, not BubbleBeam).'
     return info
 
 def fetchGame(self):
@@ -309,13 +306,11 @@ def fetchMonInfo(self, monName):
                                         LEFT JOIN pokemon.levelingrate lr ON mon.levelingrateid = lr.levelingrateid
                                         WHERE mon.pokemonid = """+id+""" LIMIT 1
             """)
-            print(str(growthRate))
             growthRate = str(growthRate[0][0])
-            #LEFT JOIN pokemon.pokemonvariant pv ON pe.targetpokemonvariantid = pv.pokemonvariantid
+        #if it is a variant, get variant pokemon info instead
         else:
             #for DB purposes, the variantid is the unique identifier of the pokemon.
             #once we know this, we can use it to easily fetch BST, moves, and other attributes  
-            print(monDexNameTypes)
             variant = str(monDexNameTypes[0][2])
             #fetch move names + move levels for the pokemon in the generation, not including starting moves (lvl 1) and TM moves
             moves = executeSQL("""SELECT DISTINCT mv.movename,pm.pokemonmovelevel FROM pokemon.pokemonmove pm 
@@ -358,7 +353,6 @@ def fetchMonInfo(self, monName):
                                         LEFT JOIN pokemon.pokemonvariant pv ON mon.pokemonid = pv.pokemonid
                                         WHERE pv.pokemonvariantid = """+variant+""" LIMIT 1
             """)
-            print(str(growthRate))
             growthRate = str(growthRate[0][0])
             #if the pokemon has more than one type, store the types as a string surrounded by parens with a '/' between
             if len(monDexNameTypes) > 1:
@@ -368,12 +362,11 @@ def fetchMonInfo(self, monName):
                 types = "("+str(monDexNameTypes[0][3])+")"
         #fetch the list of move levels and store them in a str var
         for move in moves:
-                moveList += str(move[1])+", "
+            moveList += str(move[1])+", "
+        #remove the extra comma and space after
         moveList = moveList[0:len(moveList)-2]
         name = str(monDexNameTypes[0][1])
-        print(str(monDexNameTypes))
         dex = str(monDexNameTypes[0][0])
-        print("BST:"+str(monBST))
         monBST = str(monBST[0][0])
         monInfo = "#"+dex+" "+name+" "+types+" | XP: "+xp+" | Catch: "+ captureRate + "% | BST: "+monBST+" | Growth: "+growthRate+" | "+evoInfo+" | "+moveList
     except:
@@ -480,7 +473,6 @@ def executeSQL(sql):
     conn = psycopg2.connect(**params)
     with conn.cursor() as cur:
         cur.execute(sql)
-        print("Executing: "+sql)
         result = cur.fetchall()
     return result
 
