@@ -3,7 +3,9 @@ This is a bot adapted from [chatbot-python-sample](https://github.com/twitchdev/
 
 The bot uses a PostgreSQL database with data scraped and taken from [Serebii.net](https://www.serebii.net), [Bulbapedia](https://bulbapedia.bulbagarden.net/wiki/Main_Page), [veekun's Pokedex](https://github.com/veekun/pokedex), [Smogon University](https://www.smogon.com), and [pokemondb.net](https://pokemondb.net/).
 
-![image](screens/chatbotshot.png)
+If you would like the bot to join your channel, type "!join" into the [bot's channel here](https://www.twitch.tv/brdybot).
+
+If you believe the bot has encountered an error, you can contact me on [Discord](https://discord.gg/33eQn3fK)
 
 # Bot
 The bot has the following commands available:
