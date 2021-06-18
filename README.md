@@ -37,7 +37,11 @@ The bot has the following commands available:
 The database is not available in this repo, but the credits are as follows:
 
 XP Yield, Capture Rates, EV Yields: Bulbapedia
+  
 Gen 1-8 Move Data: Smogon
+
 Gen 1-7 Pokemon Move Data: veekun
+
 Gen 8 Pokemon Move Data: Serebii.net
+
 Cross-Checking: pokemondb.net
