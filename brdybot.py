@@ -154,7 +154,7 @@ def ircListen(conn, token, botName, channel, server):
                     elif command == "!leave" and channel == "brdybot":
                         message = removeClient(username)
                     elif command == "!pokecom":
-                        commands = "!pokecom, !mon, !move, !ability, !nature, !weak, !pokegame, !botinfo"
+                        commands = "!pokecom, !mon, !move, !ability, !nature, !weak, !pokegame, !abbrevs, !botinfo"
                         message = "Available commands are " + commands + "."
                     elif command == "!botinfo":
                         message = "https://github.com/brdy1/brdybot"

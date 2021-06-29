@@ -3,7 +3,7 @@ This is a bot adapted from [chatbot-python-sample](https://github.com/twitchdev/
 
 The bot uses a PostgreSQL database with data scraped and taken from [Serebii.net](https://www.serebii.net), [Bulbapedia](https://bulbapedia.bulbagarden.net/wiki/Main_Page), [veekun's Pokedex](https://github.com/veekun/pokedex), [Smogon University](https://www.smogon.com), and [pokemondb.net](https://pokemondb.net/).
 
-![image](screens/chatbotshot.png)
+ ![image](screens/chatbotshot.png)
 
 # Bot
 The bot has the following commands available:
