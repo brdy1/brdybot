@@ -37,9 +37,11 @@ The bot has the following commands available:
 
 - !pokecom: Lists the available commands the bot can perform.
 
-![image](screens/commands.PNG)
+ ![image](screens/commands.PNG)
 
 -!abbrevs: Lists the available games and their abbreviations for use with the !pokegame command.
+
+ ![image](screens/abbrevs.PNG)
 
 # Data
 The database is not available in this repo, but the table schema is as follows:
