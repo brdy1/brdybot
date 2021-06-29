@@ -7,7 +7,7 @@ The bot uses a PostgreSQL database with data scraped and taken from [Serebii.net
 
 # Bot
 The bot has the following commands available:
-- !game <game abbreviation>: Sets the game and generation using an abbreviation code.
+- !pokegame <game abbreviation>: Sets the game and generation using an abbreviation code. See also !abbrevs
   
  ![image](screens/game.PNG) 
  ![image](screens/game2.PNG)
@@ -38,6 +38,8 @@ The bot has the following commands available:
 - !pokecom: Lists the available commands the bot can perform.
 
 ![image](screens/commands.PNG)
+
+-!abbrevs: Lists the available games and their abbreviations for use with the !pokegame command.
 
 # Data
 The database is not available in this repo, but the table schema is as follows:

@@ -144,6 +144,8 @@ def ircListen(conn, token, botName, channel, server):
                             message = getWeaknessInfo(monName,channel)
                         except Exception:
                             traceback.print_exc()
+                    elif command == "!abbrevs":
+                        message = getAbbrevs()
                     elif command == "!pokegame" and username == channel:
                         message = setGame(parameters, channel, server)
                     elif command == "!join" and channel == "brdybot":
@@ -507,6 +509,15 @@ def getWeaknessInfo(monName, channel):
         
     weaknessInfo = weaknessInfo.replace('[','').replace(']','').replace("\'","")
     return weaknessInfo
+
+def getAbbrevs():
+    abbrevs = performSQL("SELECT gg.gamegroupname,gg.gamegroupabbreviation FROM pokemon.gamegroup gg")
+    message = "Available abbreviations are: "
+    for abbrev in abbrevs:
+        message += abbrev[1]+" ("+abbrev[0]+"), "
+    message = message[:len(message)-2]
+    message += ". PC, XD, LG, and BDSP may not have complete data."
+    return message
 
 def getCoverage(types):
     pass
