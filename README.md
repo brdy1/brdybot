@@ -3,9 +3,7 @@ This is a bot adapted from [chatbot-python-sample](https://github.com/twitchdev/
 
 The bot uses a PostgreSQL database with data scraped and taken from [Serebii.net](https://www.serebii.net), [Bulbapedia](https://bulbapedia.bulbagarden.net/wiki/Main_Page), [veekun's Pokedex](https://github.com/veekun/pokedex), [Smogon University](https://www.smogon.com), and [pokemondb.net](https://pokemondb.net/).
 
-If you would like the bot to join your channel, type "!join" into the [bot's channel here](https://www.twitch.tv/brdybot).
-
-If you believe the bot has encountered an error, you can contact me on [Discord](https://discord.gg/33eQn3fK)
+![image](screens/chatbotshot.png)
 
 # Bot
 The bot has the following commands available:
@@ -24,24 +22,90 @@ The bot has the following commands available:
  ![image](screens/mon.PNG)
  ![image](screens/mon2.PNG) 
   
-- !nature <nature>: Looks up a nature name and returns the affected stats in the chat.
-  
- ![image](screens/nature.PNG) 
-  
 - !ability <ability name>: Looks up an ability and returns a generation-specific summary of the ability with a description of its effects in the chat.
   
  ![image](screens/ability2.PNG) 
  ![image](screens/ability.PNG) 
 
-# Data
-The database is not available in this repo, but the credits are as follows:
+- !weak <pokemon name>: Looks up a pokemon's weaknesses and resistances and returns them in an organized list according to damage effectiveness.
 
-XP Yield, Capture Rates, EV Yields: Bulbapedia
+ ![image](screens/weak.PNG)
+
+- !nature <nature>: Looks up a nature name and returns the affected stats in the chat.
   
-Gen 1-8 Move Data: Smogon
+ ![image](screens/nature.PNG) 
 
-Gen 1-7 Pokemon Move Data: veekun
+- !pokecom: Lists the available commands the bot can perform.
 
-Gen 8 Pokemon Move Data: Serebii.net
+![image](screens/commands.PNG)
 
-Cross-Checking: pokemondb.net
+# Data
+The database is not available in this repo, but the table schema is as follows:
+
+"pokemon"	"ability"
+
+"pokemon"	"egggroup"
+
+"pokemon"	"evolutiontype"
+
+"pokemon"	"game"
+
+"pokemon"	"gamegroup"
+
+"pokemon"	"generation"
+
+"pokemon"	"generationability"
+
+"pokemon"	"item"
+
+"pokemon"	"itemgeneration"
+
+"pokemon"	"itemtype"
+
+"pokemon"	"levelingrate"
+
+"pokemon"	"levelingrateequation"
+
+"pokemon"	"location"
+
+"pokemon"	"move"
+
+"pokemon"	"movecategory"
+
+"pokemon"	"nature"
+
+"pokemon"	"pokemon"
+
+"pokemon"	"pokemonability"
+
+"pokemon"	"pokemonegggroup"
+
+"pokemon"	"pokemonevolution"
+
+"pokemon"	"pokemonevolutionitem"
+
+"pokemon"	"pokemonevolutionlevel"
+
+"pokemon"	"pokemonevolutionlocation"
+
+"pokemon"	"pokemonevolutionmove"
+
+"pokemon"	"pokemonevolutionstring"
+
+"pokemon"	"pokemonexperienceyield"
+
+"pokemon"	"pokemonmove"
+
+"pokemon"	"pokemonmovemethod"
+
+"pokemon"	"pokemonstat"
+
+"pokemon"	"pokemontype"
+
+"pokemon"	"pokemonvariant"
+
+"pokemon"	"pokemonvarianttype"
+
+"pokemon"	"stat"
+
+"pokemon"	"type"
