@@ -7,39 +7,78 @@ The bot uses a PostgreSQL database with data scraped and taken from [Serebii.net
 
 # Bot
 The bot has the following commands available:
-- !pokegame <game abbreviation>: Sets the game and generation using an abbreviation code. See also !abbrevs
-  
- ![image](screens/game.PNG) 
- ![image](screens/game2.PNG)
-  
-- !move <move name>: Looks up a move name and returns all generation-specific information about the move in the chat (name, pp, power, accuracy, category, contact/no contact, summary of effects, etc.).
-  
- ![image](screens/move.PNG)
- ![image](screens/move2.PNG)
-  
-- !mon <pokemon name>: Looks up a pokemon and returns all game-specific information about the pokemon in the chat (dex, name, type, BST, xp yield, evolution(s), learnset).
-  
- ![image](screens/mon.PNG)
- ![image](screens/mon2.PNG) 
-  
-- !ability <ability name>: Looks up an ability and returns a generation-specific summary of the ability with a description of its effects in the chat.
-  
+
+- !abbrevs: Returns all available game names and their abbreviations to the chat.
+
+ ![image](screens/abbrevs.PNG)
+
+- !ability: User sends an ability name as a parameter, and the bot returns information about it to the chat.
+
  ![image](screens/ability2.PNG) 
  ![image](screens/ability.PNG) 
 
-- !weak <pokemon name>: Looks up a pokemon's weaknesses and resistances and returns them in an organized list according to damage effectiveness.
+- !botinfo: The bot returns basic information and links related to the bot.
+- !brdybotleave: Makes the bot leave the current channel. Only channel owner can use this command.
+- !bst: User sends the name of a Pokemon as a parameter, and the bot returns the BST for the current generation.
+- !coverage: Takes one or more types as inputs, and outputs the number of Pokemon in the current game that fall into each maximum damage effectiveness bracket.
+- !gamelist: Lists the games available to be changed to with the !pokegame command.
+- !help: User sends the name of a command, and the bot returns the description of a command to chat.
 
- ![image](screens/weak.PNG)
+![image](screens/help.PNG)
 
-- !nature <nature>: Looks up a nature name and returns the affected stats in the chat.
-  
+- !join: Any user may type this in the bot's channel to have it join their channel.
+- !learnset: User sends the name of a Pokemon as a parameter, and the bot returns the levels at which that Pokemon learns moves in the current game.
+- !listops: Lists all operants for the current channel.
+- !mon: User sends a Pokemon name as a parameter, and the bot returns information about it to the chat.
+
+ ![image](screens/mon.PNG)
+ ![image](screens/mon2.PNG) 
+
+- !move: User sends a move name as a parameter, and the bot returns information about it to the chat.
+
+ ![image](screens/move.PNG)
+ ![image](screens/move2.PNG)
+
+- !nature: User sends a nature name as a parameter, and the bot returns the affected attributes to the chat.
+
  ![image](screens/nature.PNG) 
 
-- !pokecom: Lists the available commands the bot can perform.
+- !pokecom: The bot retrieves and returns all pokemon commands available.
 
  ![image](screens/commands.PNG)
 
+- !pokegame: User sends a game name or abbreviation as a parameter, and the bot changes the game for the channel.
+
+ ![image](screens/game.PNG) 
+ ![image](screens/game2.PNG)
+
+- !pokeops: User sends an Operant Name and Operant Type as parameters, and the bot changes the corresponding user's Operant Type
+
+ ![image](screens/pokeops.PNG)
+
+- !removeops: Takes one or more usernames and removes permissions for them in the channel.
+
+ ![image](screens/removeops.PNG)
+
+- !type: User sends the name of a Pokemon as a parameter, and the bot returns the type for the Pokemon in the current generation.
+- !weak: User sends a Pokemon name as a parameter, and the bot returns type effectiveness information about it to the chat.
+  
+
+ ![image](screens/weak.PNG)
+
+
+
+- !weak <pokemon name>: Looks up a pokemon's weaknesses and resistances and returns them in an organized list according to damage effectiveness.
+
+- !nature <nature>: Looks up a nature name and returns the affected stats in the chat.
+  
+
+
+- !pokecom: Lists the available commands the bot can perform.
+
+
+
 -!abbrevs: Lists the available games and their abbreviations for use with the !pokegame command.
 
- ![image](screens/abbrevs.PNG)
+
 

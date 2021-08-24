@@ -567,7 +567,9 @@ def getMonBST(monID, channel):
     gen = getGeneration(channel)
     session = Session(engine)
     bstAl = session.query(func.sum(PokemonStat.pokemonstatvalue)).\
-                filter(PokemonStat.pokemonid == monID,PokemonStat.generationid == gen).\
+                filter(PokemonStat.pokemonid == monID,PokemonStat.generationid <= gen).\
+                group_by(PokemonStat.generationid).\
+                order_by(PokemonStat.generationid).\
                     first()
     monBST = str(bstAl[0])
     return monBST
