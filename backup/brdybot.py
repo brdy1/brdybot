@@ -1,12 +1,6 @@
 #this is for opening the configuration file
 import sys
 import configparser
-from typing import Dict
-import requests
-import json
-import pandas as pd
-from app import *
-import crosstab.crosstab
 #this is for connecting to IRC
 import socket
 #this is for connecting to the postgres database
@@ -20,19 +14,10 @@ import traceback
 #sleep is so the bot won't overload during listening
 from time import sleep
 
-dbschema='pokemon,bot'
-engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/postgres',connect_args={'options': '-csearch_path={}'.format(dbschema)})
-Base = declarative_base(engine)
-
-Base.metadata.create_all(engine)
-
 def main():
     conn, token, user, readbuffer, server = connectionVariables()
-    session = Session(engine)
-    deletedchannels = session.query(ChannelDeletion.channelid).all()
-    channels = session.query(Channel.channelname).filter(Channel.channelid.notin_(deletedchannels)).all()
-    # channels = [('brdy',)]
-    session.close()
+    #channels = performSQL("SELECT channelname FROM bot.channel ch WHERE ch.channelname = 'brdy'")
+    channels = performSQL("SELECT channelname FROM bot.channel ch WHERE ch.channelid NOT in(SELECT cd.channelid FROM bot.channeldeletion cd)")
     commandDict = getCommands()
     for channel in channels:
         channel = channel[0]
@@ -42,13 +27,10 @@ def main():
 
 def getOperants(channel):
     operators = []
-    session = Session(engine)
-    operants = session.query(Operant.operantname).select_from(Operant).\
-                join(ChannelOperant,Operant.operantid == ChannelOperant.operantid).\
-                join(Channel,ChannelOperant.channelid == Channel.channelid).\
-                filter(Channel.channelname == channel).all()
-    session.close()
-    print(operants)
+    operants = performSQL("""SELECT operantname FROM bot.channeloperant co
+                                    LEFT JOIN bot.channel ch ON co.channelid = ch.channelid
+                                    LEFT JOIN bot.operant op ON co.operantid = op.operantid
+                                    WHERE ch.channelname = '"""+channel+"'")
     for operant in operants:
         operators.append(operant[0])
     return operators
@@ -80,11 +62,12 @@ def ircListen(conn, token, botName, channel, server, operators, commandDict):
         #listening loop
         print("Starting bot in channel " +channel + " with operants: "+str(operators))
         while listenFlag:
-            message = None
             response = server.recv(2048).decode('utf-8')
             if len(response) == 0:
                 break
             if "PING" in str(response):
+                pong = str(response).replace("PING","PONG")
+                server.send(bytes(pong, 'utf-8'))
                 server.send(bytes('PONG\r\n', 'utf-8'))
             elif "!" in str(response):
                 #fetch the username,message,etc. from the response without grabbing pings, errors, or erroneous messages
@@ -102,12 +85,10 @@ def ircListen(conn, token, botName, channel, server, operators, commandDict):
                 command = userMessage.split(" ")[0].lower().replace("'","''")
                 parameters = userMessage.split(" ")[1:]
                 permissions = (username in operators) or (channel == 'brdybot') or (command == "!botinfo")
-                if ("!" in command[0:1]) and (command[1:] in list(commandDict.keys())) and permissions:
-                    print("\r\n\r\nreceived command:")
+                if ("!" in command[0:1]) and (command[1:] in commandDict) and permissions:
                     commandid = commandDict[command[1:]]
                     commandrequestid = logCommand(commandid,channel,username,parameters)
                     message = None
-                    print(commandrequestid)
                     message = doCommand(commandrequestid)
                     if message:
                         chatMessage(message,channel,server)
@@ -140,9 +121,7 @@ def ircListen(conn, token, botName, channel, server, operators, commandDict):
         logException(commandrequestid,"OtherError", channel)
 
 def getCommands():
-    session = Session(engine)
-    commands = session.query(Command.commandid,Command.commandname).order_by(Command.commandname).all()
-    session.close()
+    commands = performSQL("SELECT commandid,commandname FROM bot.command")
     commandDict = {}
     for command in commands:
         commandDict[command[1]] = command[0]
@@ -150,28 +129,10 @@ def getCommands():
 
 def doCommand(commandrequestid):
     conn, token, botName, readbuffer, server = connectionVariables()
-    session = Session(engine)
     parameters = []
-    select = [  ChannelCommandRequest.channelcommandrequestid,
-                Command.commandname,
-                Channel.channelname,
-                Operant.operantid
-                ]
-    ccr = session.query(*select).select_from(ChannelCommandRequest).\
-                join(Command).\
-                join(Channel).\
-                join(Operant).\
-                filter(ChannelCommandRequest.channelcommandrequestid == commandrequestid).all()
-    ccrp = session.query(ChannelCommandRequestParameter.channelcommandrequestparameter).\
-                select_from(ChannelCommandRequest).\
-                join(ChannelCommandRequestParameter).\
-                join(Command).\
-                join(Channel).\
-                filter(ChannelCommandRequestParameter.channelcommandrequestid == commandrequestid).all()
-    session.close()
-    id,command,channel,username = ccr[0]
-    for parameter in ccrp:
-        parameters.append(parameter[0])
+    ccr = performSQL("SELECT com.commandname,ch.channelname,op.operantname,ccrp.channelcommandrequestparameter FROM bot.channelcommandrequest ccr LEFT JOIN bot.command com ON ccr.commandid = com.commandid LEFT JOIN bot.channel ch ON ccr.channelid = ch.channelid LEFT JOIN bot.operant op ON ccr.operantid = op.operantid LEFT JOIN bot.channelcommandrequestparameter ccrp ON ccr.channelcommandrequestid = ccrp.channelcommandrequestid WHERE ccr.channelcommandrequestid ="+str(commandrequestid))
+    for command,channel,username,parameter in ccr:
+        parameters.append(parameter)
     if command == "mon":
         message = getMonInfo(parameters,channel)
     elif command == "move":
@@ -180,30 +141,10 @@ def doCommand(commandrequestid):
         message = getAbilityInfo(parameters,channel)
     # elif command == "xp":
     #     message = getXPYield()
-    elif command == "bst":
-        monName = combineParameters(parameters)
-        monID,monName = getMonID(monName,channel)
-        if monID == None:
-            message = monName
-        else:
-            game = getGame(channel)
-            message = monName + " ("+game+"): " + getMonBST(monID,channel)
-    elif command == "learnset":
-        monName = combineParameters(parameters)
-        monID,monName = getMonID(monName,channel)
-        if monID == None:
-            message = monName
-        else:
-            game = getGame(channel)
-            message = monName + " ("+game+"): "+getMonMoves(monID,channel)
-    elif command == "type":
-        monName = combineParameters(parameters)
-        monID,monName = getMonID(monName,channel)
-        if monID == None:
-            message = monName
-        else:
-            game = getGame(channel)
-            message = monName + " ("+game+"): " + getMonTypes(monID,channel).replace("(","").replace(")","")
+    # elif command == "bst":
+    #     message = getBST()
+    # elif command == "learnset":
+    #     message = getMonMoves()
     # elif command == "evolution":
     #     message = getMonEvo()
     elif command == "nature":
@@ -220,7 +161,7 @@ def doCommand(commandrequestid):
         message = setGame(parameters, channel, server)
     elif command == "pokeops":
         message = addOperants(parameters,channel)
-    elif command == "removeops":
+    elif command == "removeops" and channel == username:
         message = removeOperants(parameters,channel)
     elif command == "listops":
         message = listOperants(channel)
@@ -229,69 +170,26 @@ def doCommand(commandrequestid):
     elif command == "brdybotleave" and channel == username:
         message = removeClient(username)
     elif command == "pokecom":
-        commandsList = getCommands()
-        commandsList = list(commandsList.keys())
-        commandsList.remove("join")
-        commands = ""
-        for com in commandsList:
-            commands += "!"+com+", "
-        commands = commands[0:len(commands)-2]
-        message = "Available commands are " + commands + ". Use !help <command> for command info."
-    elif command == "help":
-         message = commandHelp(parameters)
+        commands = "!mon, !move, !ability, !coverage, !nature, !weak, !pokegame, !abbrevs, !gamelist, !botinfo, !listops, !pokeops, !pokecom, !brdybotleave"
+        message = "Available commands are " + commands + "."
     elif command == "botinfo":
         message = "Visit https://www.twitch.tv/brdybot/about"
     return message
 
-def commandHelp(command):
-    session = Session(engine)
-    if len(command) < 1:
-        message = "Command !help requires a command as a parameter. Use !pokecom to see list of commands."
-        return message
-    elif len(command) > 1:
-        message = "Too many parameters in !help command. Use '!help <command>'"
-        return message
-    else:
-        command = command[0]
-    commandQuery = session.query(Command.commandname,Command.commanddescription).\
-                    select_from(Command).\
-                    order_by(func.levenshtein(Command.commandname,command)).\
-                    first()
-    comName,comDesc = commandQuery
-    message = "Command !"+comName+": "+comDesc
-    return message
-
 def storeMessage(message,ccrid):
-    message = message.replace("'","''")
-    session = Session(engine)
-    stmt = update(ChannelCommandRequest).\
-            where(ChannelCommandRequest.channelcommandrequestid == ccrid).\
-            values(channelcommandrequestreturn=message).\
-            returning(ChannelCommandRequest.channelcommandrequestid)
-    success = session.execute(stmt)
-    session.commit()
-    session.close()
+    success = performSQL("UPDATE bot.channelcommandrequest SET channelcommandrequestreturn ='"+message.replace("'","''")+"' WHERE channelcommandrequestid = "+str(ccrid)+" RETURNING channelcommandrequestid;")
     return success
 
 def logException(commandrequestid, exception, channel):
     channelid = getChannelID(channel)
     if not commandrequestid:
-        commandrequestid = None
-    session = Session(engine)
-    errortype = session.query(ErrorType.errortypeid).filter(ErrorType.errortypename == exception).first()
-    if errortype != []:
-        errortype = errortype[0]
+        commandrequestid = "null"
+    errortypeid = performSQL("SELECT errortypeid FROM bot.errortype WHERE errortypename = '"+exception+"'")
+    if errortypeid != []:
+        errortypeid = errortypeid[0][0]
     else:
-        errortype = session.query(ErrorType.errortypeid).filter(ErrorType.errortypename == "OtherError").first()
-    if commandrequestid:
-        stmt = insert(ChannelError).\
-                    values(channelcommandrequestid=commandrequestid, errortypeid=errortype)
-    else:
-        stmt = insert(ChannelError).\
-                    values(errortypeid=errortype)
-    channelerrorid = session.execute(stmt).inserted_primary_key[0]
-    session.commit()
-    session.close()
+        errortypeid = performSQL("SELECT errortypeid FROM bot.errortype WHERE errortypename = 'OtherError'")
+    channelerrorid = performSQL("INSERT INTO bot.channelerror (channelcommandrequestid,errortypeid) VALUES ("+str(commandrequestid)+","+str(errortypeid)+") RETURNING channelerrorid;")
     traceback.print_exc()
     print(" with channelerrorid = "+str(channelerrorid))
     commandDict = getCommands()
@@ -301,82 +199,65 @@ def logException(commandrequestid, exception, channel):
     sys.exit()
 
 def getChannelID(channel):
-    session = Session(engine)
-    channelid = session.query(Channel.channelid).\
-                filter(Channel.channelname == channel).first()
-    session.close()
+    channelid = performSQL("SELECT ch.channelid FROM bot.channel ch WHERE ch.channelname ='"+channel+"'")[0][0]
     return channelid
 
 def logCommand(commandid,channelname,operantname,parameters):
-    session = Session(engine)
-    commandname = session.query(Command.commandname).filter(Command.commandid == commandid).first()[0]
+    commandname = performSQL("SELECT com.commandname FROM bot.command com WHERE com.commandid = "+str(commandid))[0][0]
     if commandid == 9:
         success = addOperants([operantname],channelname)
     channelid = getChannelID(channelname)
-    operantid = session.query(Operant.operantid).filter(Operant.operantname == operantname).first()[0]
+    operantid = performSQL("SELECT op.operantid FROM bot.operant op WHERE op.operantname = '"+operantname+"'")[0][0]
     print("\r\n________________________________________________________________________________________________________")
     print("Received the "+commandname+" command in channel "+channelname+" from user "+operantname+". Parameters: "+str(parameters)+"\r\n")
-    stmt = insert(ChannelCommandRequest).\
-                            values(commandid=commandid,channelid=channelid,operantid=operantid)
-    result = session.execute(stmt)
-    ccrid = result.inserted_primary_key[0]
-    session.commit()
+    channelcommandrequestid = performSQL("INSERT INTO bot.channelcommandrequest (commandid,channelid,operantid) VALUES ("+str(commandid)+","+str(channelid)+","+str(operantid)+") RETURNING channelcommandrequestid;")[0][0]
     for parameter in parameters:
         parameter = parameter.replace("'","''")
-        parameterid = insert(ChannelCommandRequestParameter).\
-                    values(channelcommandrequestid=ccrid,channelcommandrequestparameter=parameter).\
-                    returning(ChannelCommandRequestParameter.channelcommandrequestparameterid)
-        result = session.execute(parameterid)
-    session.commit()
-    session.close()
-    return ccrid
+        parameterid = performSQL("INSERT INTO bot.channelcommandrequestparameter (channelcommandrequestid,channelcommandrequestparameter) VALUES ("+str(channelcommandrequestid)+",'"+parameter+"') RETURNING channelcommandrequestparameterid;")
+    return channelcommandrequestid
 
 def addOperants(parameters, channel):
-    channelid = getChannelID(channel)
-    session = Session(engine)
-    note = ""
+    note = " User(s) "
     exists = False
     for parameter in parameters:
         parameter = parameter.lower()
-        operantid = session.query(Operant.operantid).filter(Operant.operantname == parameter).first()
-        if operantid == None:
-            operantid = insert(Operant).values(operantname=parameter)
-            operantid = session.execute(operantid).inserted_primary_key[0]
-            session.commit()
-            session.close()
+        operantid = performSQL("SELECT operantid FROM bot.operant WHERE operantname = '"+parameter+"'")
+        if operantid == []:
+            operantid = performSQL("INSERT INTO bot.operant (operantname) values ('"+parameter+"') RETURNING operantid;")[0][0]
         else:
-            operantid = operantid[0]
-        channeloperantid = session.query(ChannelOperant.channeloperantid).select_from(ChannelOperant).\
-                        join(Channel,ChannelOperant.channelid == Channel.channelid).\
-                        join(Operant,ChannelOperant.operantid == Operant.operantid).\
-                        filter(Channel.channelname == channel,ChannelOperant.operantid == operantid).first()
-        if channeloperantid == None:
-            channeloperantid = insert(ChannelOperant).values(channelid=channelid,operantid=operantid,operanttypeid=2)
-            channeloperantid = session.execute(channeloperantid).inserted_primary_key[0]
-            session.commit()
-            session.close()
+            operantid = operantid[0][0]
+        operantid = str(operantid)
+        channeloperantid = performSQL("SELECT channeloperantid FROM bot.channeloperant co LEFT JOIN bot.channel ch ON co.channelid = ch.channelid LEFT JOIN bot.operant op ON co.operantid = op.operantid WHERE ch.channelname = '"+channel+"' AND co.operantid ="+operantid)
+        if channeloperantid == []:
+            sql = "INSERT INTO bot.channeloperant (channelid,operantid,operanttypeid) VALUES ((SELECT channelid FROM bot.channel WHERE channelname ='"+channel+"'),"+operantid+",2) RETURNING channeloperantid;"
+            channeloperantid = performSQL(sql)
         else:
-            note = " Some listed users were already bot users in channel "+channel+"."
-    message = "Successfully added bot users to configuration."+note
-    session.commit()
-    session.close()
+            exists = True
+            if parameters.index(parameter) < len(parameters)-3:
+                note += parameter + ", "
+            elif parameters.index(parameter) < len(parameters)-2:
+                note += parameter + " and "
+            elif parameters.index(parameter) < len(parameters)-1:
+                note += parameter + " "
+    message = "Successfully added bot users to configuration."
+    if exists:
+        message += note + " already exist(s) as bot user(s) in channel "+channel+"."
     return message
 
 def removeOperants(parameters, channel):
     message = "User(s) "
-    session = Session(engine)
     for parameter in parameters:
         parameter = parameter.lower()
         if parameter != channel:
-            channelid = getChannelID(channel)
-            operantid = session.query(Operant.operantid).\
-                        filter(Operant.operantname == parameter).\
-                            first()
-            session.query(ChannelOperant).\
-                    filter(ChannelOperant.channelid==channelid,ChannelOperant.operantid==operantid).\
-                        delete()
-            session.commit()    
-            session.close()
+            sql = """DELETE FROM bot.channeloperant
+                    WHERE channeloperantid =
+                    (SELECT channeloperantid
+                    FROM bot.channeloperant co
+                    INNER JOIN bot.channel ch ON co.channelid = ch.channelid
+                    INNER JOIN bot.operant op ON co.operantid = op.operantid
+                    WHERE ch.channelname = '"""+channel+"' AND op.operantname = '"+parameter+"""')
+                    RETURNING operantid;"""
+            operantid = performSQL(sql)
             message += parameter
         else:
             message = "You cannot remove the channel owner from the operant list. "+message
@@ -394,26 +275,22 @@ def listOperants(channel):
     return message
 
 def addClient(conn, token, botName, username, server):
-    session = Session(engine)
-    channelid = getChannelID(username)
-    operantid = session.query(Operant.operantid).filter(Operant.operantname == username).first()
+    channelid = performSQL("SELECT channelid FROM bot.channel WHERE channelname = '"+username+"'")
+    operantid = performSQL("SELECT operantid FROM bot.operant WHERE operantname = '"+username+"'")
     if channelid == []:
-        channelid = insert(Channel).values(channelname=username,gameid=10).returning(Channel.channelid)
-        channelid = session.execute(channelid).inserted_primary_key[0]
-        session.commit()
-        session.close()
+        sql = "INSERT INTO bot.channel (channelname,gameid) VALUES ('"+username+"',10) RETURNING channelid;"
+        channelid = performSQL(sql)
     if operantid == []:
-        operantid = insert(Operant).values(operantname=username).returning(Operant.operantid)
-        operantid = session.execute(operantid).inserted_primary_key[0]
-        session.commit()
-        session.close()
-    operanttypeid = session.query(ChannelOperant.operanttypeid).\
-                        filter(ChannelOperant.channelid == channelid, ChannelOperant.operantid == operantid).first()
-    if operanttypeid == []:
-        channeloperantid = insert(ChannelOperant).values(channelid=channelid,operantid=operantid,operanttypeid=1).returning(ChannelOperant.channeloperantid)
-        channeloperantid = session.execute(channeloperantid)
-        session.commit()
-        session.close()
+        sql = "INSERT INTO bot.operant (operantname) VALUES ('"+username+"') RETURNING operantid;"
+        operantid = performSQL(sql)
+    sql = """SELECT operanttypeid FROM bot.channeloperant co
+                LEFT JOIN bot.channel ch ON co.channelid = ch.channelid
+                LEFT JOIN bot.operant op ON co.operantid = op.operantid
+                WHERE ch.channelname = '"""+username+"""' AND op.operantname ='"""+username+"'"
+    channeloperantid = performSQL(sql)
+    if channeloperantid == []:
+        sql = "INSERT INTO bot.channeloperant (channelid, operantid, operanttypeid) VALUES ("+str(channelid[0][0])+","+str(operantid[0][0])+",1) RETURNING channeloperantid;"
+        channeloperantid = performSQL(sql)
         message = username+""" - You have been successfully added to the channel list.
                                 Game has been set to FireRed. Use !pokegame in your channel to change the game.
                                 Note that I do store usernames and command usage records in the database for use in feature improvement.
@@ -422,26 +299,22 @@ def addClient(conn, token, botName, username, server):
         operants = getOperants(username)
         commandDict = getCommands()
         threading.Thread(target=ircListen, args=(conn, token, botName, username, server, operants,commandDict)).start()
-    elif operanttypeid[0][0] == 1:
+    elif channeloperantid[0][0] == 1:
         message = username+" - I should be operating in your channel. If I'm not, message brdy on Discord to correct the error."
-    session.close()
     return message
 
 def removeClient(channel):
-    session = Session(engine)
-    channelid = getChannelID(channel)
-    channelid = insert(ChannelDeletion).values(channelid=channelid).returning(channelid)
-    session.commit()
-    session.close()
+    sql = "INSERT INTO  bot.channeldeletion (channelid) values (SELECT ch.channelid FROM bot.channel ch WHERE ch.channelname = '"+channel+"') RETURNING channelid"
+    channelid = performSQL(sql)
     message = channel+" - Successfully removed you from the channel list."
     return message
 
 def getMoveID(moveName):
-    session = Session(engine)
-    moveShtein = func.least(func.levenshtein(Move.movename,moveName),func.levenshtein(MoveNickname.movenickname,moveName)).label("moveShtein")
-    moveID = session.query(Move.moveid).join(MoveNickname,Move.moveid == MoveNickname.moveid).order_by(moveShtein).filter(moveShtein < 5).limit(1).first()
-    session.close()
-    moveID = str(moveID[0])
+    moveID = performSQL(""" WITH ldist as (SELECT mv.moveid,LEAST(pokemon.levenshtein(mv.movename, '"""+moveName+"""'),
+                            pokemon.levenshtein(mn.movenickname, '"""+moveName+"""')) AS distance FROM pokemon.move mv
+                            LEFT JOIN pokemon.movenickname mn ON mv.moveid = mn.moveid)
+                            SELECT moveid,distance FROM ldist WHERE distance < 5 ORDER BY distance LIMIT 1""")
+    moveID = str(moveID[0][0])
     return moveID
 
 def combineParameters(parameters):
@@ -453,29 +326,17 @@ def combineParameters(parameters):
 
 def getMonID(monName,channel):
     monName = monName.replace("'","''")
-    print("GetMonID MonName: "+monName)
-    session = Session(engine)
-    gameid = getGameID(channel)
-    gameName = getGame(channel)
-    monShtein = (func.least(func.pokemon.levenshtein(Pokemon.pokemonname,monName),func.pokemon.levenshtein(PokemonNickname.pokemonnickname,monName))).label("monShtein")
-    monID,monAvailability = session.query(Pokemon.pokemonid,PokemonGameAvailability.pokemonavailabilitytypeid).\
-                select_from(Pokemon).\
-                join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid, isouter = True).\
-                join(PokemonGameAvailability,Pokemon.pokemonid == PokemonGameAvailability.pokemonid).\
-                filter(monShtein < 5,PokemonGameAvailability.gameid == gameid).\
-                order_by(monShtein).\
-                first()
+    monID = performSQL("""WITH ldist as (SELECT DISTINCT mon.pokemonid,LEAST(pokemon.levenshtein(mon.pokemonname,'"""+monName+"""'),
+                            pokemon.levenshtein(pn.pokemonnickname,'"""+monName+"""')) AS distance FROM pokemon.pokemon mon 
+                            LEFT JOIN pokemon.pokemonnickname pn ON mon.pokemonid = pn.pokemonid) 
+                            SELECT pokemonid,distance FROM ldist WHERE distance < 5 ORDER BY distance LIMIT 1""")
     if monID == []:
         errorString = "Could not find Pokemon "+monName+"."
         return None,errorString
-    elif monAvailability == (18):
-        errorString = monName + " is not available in "+gameName+"."
-        return None,errorString
-    monID = str(monID)
-    print("GetMonID MonID: "+str(monID))
-    monName = session.query(Pokemon.pokemonname).filter(Pokemon.pokemonid == monID).first()
-    monName = str(monName[0])
-    session.close()
+    monID = str(monID[0][0])
+    monName = performSQL("""SELECT DISTINCT mon.pokemonname FROM pokemon.pokemon mon
+                            WHERE mon.pokemonid = """+monID)
+    monName = str(monName[0][0])
     return monID,monName
 
 def getMonInfo(parameters,channel):
@@ -487,28 +348,20 @@ def getMonInfo(parameters,channel):
     game = getGame(channel)
     if monID == None:
         return monName
-    session = Session(engine)
-    availability = session.query(PokemonGameAvailability.pokemonavailabilitytypeid).\
-                        join(Game,PokemonGameAvailability.gameid == Game.gameid).\
-                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
-                        filter(PokemonGameAvailability.pokemonid == monID,GameGroup.gamegroupabbreviation == game).\
-                        distinct().all()
+    availability = performSQL("""SELECT DISTINCT pa.pokemonavailabilitytypeid
+                                FROM pokemon.pokemongameavailability pa
+                                LEFT JOIN pokemon.game ga ON pa.gameid = ga.gameid
+                                LEFT JOIN pokemon.gamegroup gg ON gg.gamegroupid = ga.gamegroupid
+                                WHERE pa.pokemonid = """+monID+" AND gg.gamegroupabbreviation = '"+game+"'")
     if availability[0][0] == 18:
-        gameID = getGameID(channel)
-        gameName = session.query(Game.gamename).filter(Game.gameid == gameID).first()[0]
-        message = monName + " is not available in " + gameName + "."
+        message = monName + " is not available in " + game + "."
         return message
     #this section gets all the info to be compiled in a string at the end of this function
-    monsel = [  Pokemon.pokemonname,
-                Pokemon.pokemonpokedexnumber,
-                LevelingRate.levelingratename,
-                Pokemon.pokemoncapturerate
-                ]
-    monName,monDex,monGrowth,monCaptureRate = session.query(*monsel).\
-                                                select_from(Pokemon).\
-                                                join(LevelingRate,Pokemon.levelingrateid == LevelingRate.levelingrateid).\
-                                                filter(Pokemon.pokemonid == monID).first()
-    session.close()
+    monName,monDex,monGrowth,monCaptureRate = performSQL("""SELECT DISTINCT mon.pokemonname,mon.pokemonpokedexnumber,
+                            lr.levelingratename,mon.pokemoncapturerate 
+                            FROM pokemon.pokemon mon 
+                            LEFT JOIN pokemon.levelingrate lr ON mon.levelingrateid = lr.levelingrateid 
+                            WHERE pokemonid = """+monID)[0]
     monDex = str(monDex)
     monCaptureRate = getCaptureRate(monCaptureRate, channel)
     monTypes = getMonTypes(monID, channel)
@@ -521,43 +374,44 @@ def getMonInfo(parameters,channel):
     return monInfo
 
 def getMonGrowth(monID,channel):
-    session = Session(engine)
-    rate = session.query(LevelingRate.levelingratename).join(Pokemon,Pokemon.levelingrateid == LevelingRate.levelingrateid).filter(Pokemon.pokemonid == monID).first()
-    rate = str(rate[0])
-    session.close()
+    sql = "SELECT lr.levelingratename FROM pokemon.levelingrate lr LEFT JOIN pokemon.pokemon mon ON lr.levelingrateid = mon.levelingrateid WHERE mon.pokemonid = "+monID
+    rate = str(performSQL(sql)[0][0])
     return rate
 
 def getGeneration(channel):
-    session = Session(engine)
-    generation = session.query(Generation.generationid).select_from(Channel).\
-                            join(Game,Channel.gameid == Game.gameid).\
-                            join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
-                            join(Generation,GameGroup.generationid == Generation.generationid).\
-                            filter(Channel.channelname == channel).first()
-    generation = str(generation[0])
-    session.close()
+    generation = performSQL("""SELECT gen.generationid FROM bot.channel ch
+                               LEFT JOIN pokemon.game gm ON ch.gameid = gm.gameid
+                               LEFT JOIN pokemon.gamegroup gg ON gm.gamegroupid = gg.gamegroupid
+                               LEFT JOIN pokemon.generation gen ON gg.generationid = gen.generationid
+                               WHERE ch.channelname = '"""+channel+"'")[0][0]
+    generation = str(generation)
     return generation
 
 def getMonDex(monID, channel):
-    session = Session(engine)
-    dex = session.query(Pokemon.pokemonpokedexnumber).filter(Pokemon.pokemonid == monID).first()
-    monDex = str(dex[0])
+    sql = """SELECT DISTINCT mon.pokemonpokedexnumber FROM pokemon.pokemon mon"""
+    sql += " WHERE mon.pokemonid = "+monID
+    dexArray = performSQL(sql)
+    monDex = str(dexArray[0][0])
     return monDex
 
 def getMonTypes(monID, channel):
+    
     gen = getGeneration(channel)
-    typeList = []
-    url = "http://127.0.0.1:5000/api/v1.0/pokemon"
-    data = requests.get(url+"?id="+monID+"&gen="+gen)
-    data = data.json()
-    typeList = list(data[monID]['types'].keys())
-    for mType in typeList:
-        if data[monID]['types'][mType] == 'false':
-            typeList.remove(mType)
+    monTypes = """WITH monTypes as (SELECT pokemonid,type1id,type2id
+                    FROM pokemon.crosstab('select pokemonid, typeid as type1id, typeid as type2id
+                FROM pokemon.pokemontype pt WHERE pt.generationid = """+gen+"""
+                AND pt.pokemonid = """+monID+"""
+                GROUP BY pokemonid,type1id,type2id ORDER BY pokemonid,type1id,type2id')
+                        AS ct( pokemonid int, type1id int, type2id int)) \r\n"""
+    mainSelect = """SELECT type1.typename,type2.typename FROM monTypes
+                    LEFT JOIN pokemon.type type1 ON monTypes.type1id = type1.typeid
+                    LEFT JOIN pokemon.type type2 ON monTypes.type2id = type2.typeid"""
+    typeArray = performSQL(monTypes+mainSelect)
     #if there are two types, store as (Type1/Type2)
-    types = "("+str(typeList[0])
-    if len(typeList) > 1:
-        types += "/"+str(typeList[1])+")"
+    #print(str(typeArray))
+    types = "("+str(typeArray[0][0])
+    if typeArray[0][1] != None:
+        types += "/"+str(typeArray[0][1])+")"
     #otherwise, store as (Type)
     else:
         types += ")"
@@ -565,11 +419,12 @@ def getMonTypes(monID, channel):
 
 def getMonBST(monID, channel):
     gen = getGeneration(channel)
-    session = Session(engine)
-    bstAl = session.query(func.sum(PokemonStat.pokemonstatvalue)).\
-                filter(PokemonStat.pokemonid == monID,PokemonStat.generationid == gen).\
-                    first()
-    monBST = str(bstAl[0])
+    sql = """SELECT SUM(ps.pokemonstatvalue) bst, ps.generationid gen
+            FROM pokemon.pokemonstat ps """
+    sql += "LEFT JOIN pokemon.pokemon mon ON ps.pokemonid = mon.pokemonid WHERE mon.pokemonid ="+monID
+    sql += " AND ps.generationid <= "+gen+" GROUP BY gen ORDER BY gen DESC LIMIT 1"
+    bstArray = performSQL(sql)
+    monBST = str(bstArray[0][0])
     return monBST
 
 def getCaptureRate(captureRate,channel):
@@ -581,20 +436,17 @@ def getCaptureRate(captureRate,channel):
 
 def getXPYield(monID, channel,enemylevel,monlevel):
     gen = getGeneration(channel)
-    gen = int(gen)
-    session = Session(engine)
-    try:
-        xpyieldAl = session.query(PokemonExperienceYield.experienceyieldvalue,PokemonExperienceYield.generationid).\
-                    filter(PokemonExperienceYield.pokemonid == int(monID), PokemonExperienceYield.generationid <= gen).\
-                    order_by(PokemonExperienceYield.generationid.desc()).\
-                        first()
-        print(xpyieldAl)
-        monyield = xpyieldAl[0]
+    sql = "SELECT DISTINCT xp.experienceyieldvalue,xp.generationid gen FROM pokemon.pokemonexperienceyield xp "
+    sql += "WHERE xp.pokemonid = "+monID+" "
+    sql += "AND xp.generationid <= "+gen+" ORDER BY gen DESC LIMIT 1"
+    xpYieldArray = performSQL(sql)
+    if xpYieldArray == []:
+        xp="unknown"
+    else:
+        gen = int(gen)
+        monyield = xpYieldArray[0][0]
         xp = monyield*enemylevel/7
         xp=str(int(round(xp,0)))
-    except:
-        traceback.print_exc()
-        xp='unknown'
     return xp
 
 def getMonEvos(monID, channel):
@@ -688,22 +540,26 @@ def getMoveInfo(parameters, channel):
         moveName = combineParameters(parameters)
         moveName = moveName.replace("'","''")
         gen = getGeneration(channel)
-        url = "http://127.0.0.1:5000/api/v1.0/move?name="
-        moveInfo = requests.get(url+moveName)
-        moveInfo = moveInfo.json()
-        mvName = str(list(moveInfo.keys())[0])
-        moveType = moveInfo[mvName][gen]['type']
-        if moveInfo[mvName][gen]['contact'] == 'true':
-            moveContact = 'C'
+        moveID = getMoveID(moveName)
+        if moveID == []:
+            info = 'I could not find a move called "' +moveName+'.'
         else:
-            moveContact = 'NC'
-        accuracy = str(moveInfo[mvName][gen]['accuracy'])
-        description = str(moveInfo[mvName][gen]['description'])
-        power = str(moveInfo[mvName][gen]['power'])
-        pp = str(moveInfo[mvName][gen]['pp'])
-        priority = str(moveInfo[mvName][gen]['priority'])
-        category = str(moveInfo[mvName][gen]['category'])
-        info = mvName+" - Gen " +gen+ ": ("+moveType+", "+category+", "+moveContact+") | PP: "+pp+" | Power: "+power+" | Acc.: "+accuracy+" | Priority: "+priority+" | Summary: "+description
+            moveList = performSQL("""SELECT m.movename, t.typename, mc.movecategoryname, gm.movecontactflag,
+                                gm.movepp, gm.movepower, gm.moveaccuracy, gm.movepriority, gm.movedescription, gm.generationid
+                                FROM pokemon.generationmove as gm
+                                LEFT JOIN pokemon.move as m ON gm.moveid = m.moveid
+                                LEFT JOIN pokemon.type AS t ON gm.typeid = t.typeid
+                                LEFT JOIN pokemon.movecategory AS mc ON gm.movecategoryid = mc.movecategoryid
+                                WHERE gm.moveid = '""" + moveID + "' AND gm.generationid = " + gen)
+            if moveList == []:
+                info = 'I could not find a move called "' +moveName+'" in generation '+gen+'.'
+            else:
+                moveList=moveList[0]
+                if 'True' in str(moveList[3]):
+                    moveContact = "C"
+                else:
+                    moveContact = "NC"
+                info = str(moveList[0])+" - Gen " +gen+ ": ("+str(moveList[1])+", "+str(moveList[2])+", "+moveContact+") | PP: "+str(moveList[4])+" | Power: "+str(moveList[5])+" | Acc.: "+str(moveList[6])+" | Priority: "+str(moveList[7])+" | Summary: "+str(moveList[8])
     return info
 
 def getAbilityInfo(parameters, channel):
@@ -756,30 +612,55 @@ def getNatureInfo(parameters,channel):
 def getWeaknessInfo(parameters, channel):
     if len(parameters) < 1:
         weaknessInfo = "The !weak command requires the name of a Pokemon as a parameter. (ex: !weak kartana)"
-        return weaknessInfo
-    monName = combineParameters(parameters)
-    monID,monName = getMonID(monName,channel)
-    if monID == None:
-        weaknessInfo = "I was not able to find weakness info for that Pokemon."
-        return weaknessInfo
-    gen = getGeneration(channel)
-    print(gen)
-    url = "http://127.0.0.1:5000/api/v1.0/weakness"
-    data = requests.get(url+"?id="+monID+"&gen="+gen+"&channel="+channel)
-    monTypes = getMonTypes(monID,channel)
-    weaknessDict = data.json()
-    info = ""
-    for bracket in weaknessDict.keys():
-        if len(weaknessDict[bracket]) > 0:
-            info += bracket+"x: "
-            for moveType in weaknessDict[bracket]:
-                info += moveType
-                if weaknessDict[bracket].index(moveType) < len(weaknessDict[bracket])-1:
-                    info += ", "
-                elif weaknessDict[bracket].index(moveType) == len(weaknessDict[bracket])-1:
-                    info += " // "
-    weaknessInfo = monName +" "+ monTypes + ", Gen " +gen+" = \r"+info
+    else:
+        monName = combineParameters(parameters)
+        monID,monName = getMonID(monName,channel)
+        if monID == None:
+            return monName
+        gen = getGeneration(channel)
+        monTypes = """WITH montypes AS( SELECT pokemonid,type1id,type2id
+                    FROM pokemon.crosstab('select pokemonid, typeid as type1id, typeid as type2id
+                    FROM pokemon.pokemontype WHERE generationid = (SELECT MAX(generationid) FROM pokemon.pokemontype WHERE pokemonid = """+monID+""" AND generationid <= """+gen+""") AND pokemonid = """+monID+"""
+                    GROUP BY pokemonid,type1id,type2id ORDER BY pokemonid,type1id,type2id')
+                    AS ct( pokemonid int, type1id int, type2id int)), \r\n"""
+        damage1 = """damage1 as (
+                    SELECT DISTINCT attacktype.typename attacker,SUM(coalesce(tm.damagemodifier::float,1)) as damage
+                    FROM montypes
+                    LEFT JOIN pokemon.typematchup tm ON montypes.type1id  = tm.defendingtypeid
+                    LEFT JOIN pokemon.type attacktype ON tm.attackingtypeid = attacktype.typeid
+                    WHERE tm.generationid = """+gen+"""
+                    GROUP BY attacktype.typename),\r\n"""
+        damage2 = """damage2 as (
+                    SELECT DISTINCT attacktype.typename attacker,SUM(coalesce(tm.damagemodifier::float,1)) as damage
+                    FROM montypes
+                    LEFT JOIN pokemon.typematchup tm ON montypes.type2id  = tm.defendingtypeid
+                    LEFT JOIN pokemon.type attacktype ON tm.attackingtypeid = attacktype.typeid
+                    WHERE tm.generationid = """+gen+"""
+                    GROUP BY attacktype.typename) \r\n"""
+        mainSelect = """SELECT damage1.attacker attacktype,SUM(coalesce(damage1.damage,1) * coalesce(damage2.damage,1)) as totaldamage
+                    FROM damage1 LEFT JOIN damage2 ON damage1.attacker = damage2.attacker
+                    GROUP BY attacktype"""
+        matchupInfo = performSQL(monTypes+damage1+damage2+mainSelect)
+        printableDict = {4.0:[],2.0:[],1.0:[],.5:[],.25:[],0:[]}
+        for type,dmgmodifier in matchupInfo:
+            printableDict[dmgmodifier].append(type)
+        monTypes = getMonTypes(monID, channel)
+        weaknessInfo = monName +" "+ monTypes + ", Gen " +gen+" = \r"
+        if printableDict[4.0]:
+            weaknessInfo += "(4x): " + str(printableDict[4.0])+ " // "
+        if printableDict[2.0]:
+            weaknessInfo += "(2x): " + str(printableDict[2.0]) + " // "
+        if printableDict[1.0]:
+            weaknessInfo += "(1x): " + str(printableDict[1.0]) + " // "
+        if printableDict[0.5]:
+            weaknessInfo += "(.5x): " + str(printableDict[0.5]) + " // "
+        if printableDict[0.25]:
+            weaknessInfo += "(.25x): " + str(printableDict[0.25]) + " // "
+        if printableDict[0]:
+            weaknessInfo += "0x: " + str(printableDict[0])
+    weaknessInfo = weaknessInfo.replace('[','').replace(']','').replace("\'","")
     return weaknessInfo
+    
 
 def getAbbrevs():
     abbrevs = performSQL("SELECT DISTINCT gg.gamegroupabbreviation,gg.gamegrouporder FROM pokemon.gamegroup gg INNER JOIN pokemon.game gm ON gg.gamegroupid = gm.gamegroupid ORDER BY gg.gamegrouporder")
@@ -829,16 +710,16 @@ def setGame(game, channel, server):
         #turn the parameters into a gamename string
         gameName = ""
         for word in game:
-            gameName += word+" "
+            gameName += word
             #try using the parameters as an exact match with a game abbreviation
-        gameAbbr = gameName.upper().replace("'","''").replace(" ","")
+        gameName = gameName.upper()
         selectedGame = performSQL("""SELECT gg.gamegroupname, gg.gamegroupabbreviation,'null',gm.gamename,gm.gameid
                                     FROM pokemon.gamegroup gg
                                     LEFT JOIN pokemon.game gm ON gg.gamegroupid = gm.gamegroupid
-                                    WHERE gg.gamegroupabbreviation = '"""+gameAbbr+"' LIMIT 1")
+                                    WHERE gg.gamegroupabbreviation = '"""+gameName+"' LIMIT 1")
         #if we fail to find a game, try using the parameters as a full game name with levenshtein distance < 5
         if selectedGame == []:
-            fullGame = gameName.title().replace("'","''")
+            gameName = gameName.title()
             selectedGame= performSQL("""WITH ldist as (SELECT gg.gamegroupname, gg.gamegroupabbreviation,pokemon.levenshtein(gm.gamename, '"""+gameName+"""')
                                     AS distance,gm.gamename,gm.gameid FROM pokemon.game gm
                                     LEFT JOIN pokemon.gamegroup gg ON gm.gamegroupid = gg.gamegroupid)
@@ -851,12 +732,15 @@ def setGame(game, channel, server):
             channelid = performSQL(updateGame)
             message = "Changed the game to "+gameName+"."
         else:
-            message = game+" is not a valid game. Use !abbrevs for a list of valid abbreviations/games. I wasn't able to change the game to "+game+"."
+            message = gameName+" is not a valid game. Use !abbrevs for a list of valid abbreviations/games. I wasn't able to change the game to "+gameName+"."
     return message
 
 def getCoverage(coverageTypes,channel):
-    typeIDs = []
     gen = getGeneration(channel)
+    game = getGame(channel)
+    gameID = str(getGameID(channel))
+    typeIDs = []
+    typeNames = []
     for coverageType in coverageTypes:
         type = performSQL("""WITH ldist AS (SELECT ty.typeid,ty.typename,pokemon.levenshtein(ty.typename,'"""+coverageType+"""')
                             AS distance FROM pokemon.type ty where ty.generationid <="""+gen+""")
@@ -865,15 +749,151 @@ def getCoverage(coverageTypes,channel):
             message = coverageType.title()+" is not a valid type in generation "+gen+"."
             return message
         else:
-            typeIDs.append(str(type[0][0])+";")
-    typesList = ""
-    for typeid in typeIDs:
-        typesList += str(typeid)
-    typesList = typesList[0:len(typesList)-1]
-    url = "http://127.0.0.1:5000/api/v1.0/coverage/"
-    info = requests.get(url+typesList+"?channel="+channel)
-    
-    return info.text
+            typeIDs.append(type[0][0])
+            typeNames.append(type[0][1])
+    monTypes = """WITH montypes as (
+                SELECT pokemonid,type1id,type2id
+	            FROM pokemon.crosstab('select pt.pokemonid, typeid as type1id, typeid as type2id
+                FROM pokemon.pokemontype pt
+                LEFT JOIN pokemon.pokemongameavailability pga ON pt.pokemonid = pga.pokemonid
+                LEFT JOIN pokemon.game gm ON pga.gameid = gm.gameid
+                WHERE pt.generationid ="""+gen+"""
+                AND gm.gameid = """+gameID+"""
+                AND pga.pokemonavailabilitytypeid != 18
+                GROUP BY pt.pokemonid,type1id,type2id ORDER BY pt.pokemonid,type1id,type2id')
+		        AS ct( pokemonid int, type1id int, type2id int)),"""
+    damage1 = """damage1 AS (\r\n"""
+    damage1 += """SELECT montypes.pokemonid,mon.pokemonname,"""
+    for typeName in typeNames:
+        damage1 += """CASE WHEN (montypes.pokemonid = 343 AND """+typeName+"""1.attackingtypeid NOT IN(2,10,13,14,16)) THEN 0 ELSE """
+        damage1 += typeName+"1.damagemodifier::float END as "+typeName+"damage"
+        if typeNames.index(typeName) < len(typeNames)-1:
+            damage1 += ","
+        elif typeNames.index(typeName) == len(typeNames)-1:
+            damage1 += "\r\n"
+    damage1 += """ FROM montypes\r\n
+                        LEFT JOIN pokemon.pokemon mon ON montypes.pokemonid = mon.pokemonid \r\n"""
+    for typeName in typeNames:
+        damage1 += "LEFT JOIN pokemon.typematchup "+typeName+"1 ON montypes.type1id = "+typeName+"1.defendingtypeid\r\n"
+    damage1 += " WHERE "
+    for typeName in typeNames:
+        damage1 += typeName+"1.attackingtypeid = "+str(typeIDs[typeNames.index(typeName)])+"\r\n AND "
+        damage1 += typeName+"1.generationid = "+gen+" "
+        if typeNames.index(typeName) < len(typeNames)-1:
+            damage1 += "\r\n AND "
+    damage1 += "\r\nGROUP BY montypes.pokemonid,mon.pokemonname,"
+    for typeName in typeNames:
+        damage1 += typeName+"damage"
+        if typeNames.index(typeName) < len(typeNames)-1:
+            damage1 += ","
+        elif typeNames.index(typeName) == len(typeNames)-1:
+            damage1 += "),\r\n "
+    damage2 = "damage2 as (SELECT montypes.pokemonid,mon.pokemonname,"""
+    for typeName in typeNames:
+        damage2 += """CASE WHEN (montypes.pokemonid = 343 AND """+typeName+"""2.attackingtypeid NOT IN(2,10,13,14,16)) THEN 0 ELSE """
+        damage2 += typeName+"2.damagemodifier::float END as "+typeName+"damage"
+        if typeNames.index(typeName) < len(typeNames)-1:
+            damage2 += ","
+    damage2 += """\r\n FROM montypes\r\n
+                        LEFT JOIN pokemon.pokemon mon ON montypes.pokemonid = mon.pokemonid \r\n"""
+    for typeName in typeNames:
+        damage2 += "LEFT JOIN pokemon.typematchup "+typeName+"2 ON montypes.type2id = "+typeName+"2.defendingtypeid\r\n"
+    damage2 += " WHERE "
+    for typeName in typeNames:
+        damage2 += typeName+"2.attackingtypeid = "+str(typeIDs[typeNames.index(typeName)])+"\r\n AND "
+        damage2 += typeName+"2.generationid = "+gen+" "
+        if typeNames.index(typeName) < len(typeNames)-1:
+            damage2 += "\r\n AND "
+    damage2 += "\r\n GROUP BY montypes.pokemonid,mon.pokemonname,"
+    for typeName in typeNames:
+        damage2 += typeName+"damage"
+        if typeNames.index(typeName) < len(typeNames)-1:
+            damage2 += ","
+        elif typeNames.index(typeName) == len(typeNames)-1:
+            damage2 += ") "
+    preSelect = "SELECT damage, count(*) FROM (\r\n"
+    mainSelect = "SELECT damage1.pokemonid, GREATEST("
+    for typeName in typeNames:
+        mainSelect += "SUM(coalesce(damage1."+typeName+"damage,1) * coalesce(damage2."+typeName+"damage,1))"
+        if typeNames.index(typeName) < len(typeNames)-1:
+            mainSelect += ",\r\n "
+        elif typeNames.index(typeName) == len(typeNames)-1:
+            mainSelect += ") as damage FROM damage1 LEFT JOIN damage2 ON damage1.pokemonid = damage2.pokemonid "
+    mainGroup = "GROUP BY damage1.pokemonid "
+    postSelect = ") AS mondamage GROUP BY damage ORDER BY damage ASC\r\n"
+    selectString = monTypes+damage1+damage2+preSelect+mainSelect+mainGroup+postSelect
+    pokemonList = performSQL(selectString)
+    coverageString = "Types: "
+    for name in typeNames:
+        coverageString += name
+        if typeNames.index(name) < len(typeNames)-1:
+            coverageString += ", "
+    coverageString += " - "
+    pokemonString = "-- Obstacles: "
+    coverageString += " ("+game+"): "
+    for array in pokemonList:
+        coverageString += str(array[0]).replace(".0",".").replace("0.5",".5").replace("0.","0").replace("1.","1").replace("2.","2").replace("4.","4")+"x: "+str(array[1])
+        if pokemonList.index(array) < len(pokemonList)-1:
+            coverageString += " // "
+    if pokemonList[0][0] < .5 and pokemonList[1][0] < .5:
+        pokemonString = " -- Obstacles < 1x"
+        limit = pokemonList[0][1]+pokemonList[1][1]
+    elif pokemonList[0][0] < 1 and pokemonList[1][0] < 1:
+        pokemonString = " -- Obstacles < 1x"
+        limit = pokemonList[0][1]+pokemonList[1][1]
+    elif pokemonList [0][0] < 1 and pokemonList [1][0] == 1:
+        pokemonString = " -- Obstacles"
+        limit = pokemonList[0][1]
+    elif pokemonList[0][0] == 1:
+        pokemonString = " -- Top 5 1x Threats"
+        limit = 5
+    if int(limit) > 12:
+        pokemonString += " (Limit 12): "
+        limit = 12
+    else:
+        pokemonString += ": "
+    bstSelect = "SELECT damage1.pokemonid, mon.pokemonname, GREATEST("
+    for typeName in typeNames:
+        bstSelect += "SUM(coalesce(damage1."+typeName+"damage,1) * coalesce(damage2."+typeName+"damage,1))"
+        if typeNames.index(typeName) < len(typeNames)-1:
+            bstSelect += ",\r\n "
+        elif typeNames.index(typeName) == len(typeNames)-1:
+            bstSelect += """) as damage\r\n
+                            FROM damage1\r\n
+                            LEFT JOIN damage2 ON damage1.pokemonid = damage2.pokemonid\r\n
+                            LEFT JOIN pokemon.pokemon mon ON damage1.pokemonid = mon.pokemonid\r\n"""
+    monBST = """, monBST as (\r\n
+                SELECT mon.pokemonid monid,\r\n
+                    mon.pokemonname as monname,\r\n
+                    ps.generationid gen,\r\n
+                    sum(ps.pokemonstatvalue) as bst\r\n
+                FROM pokemon.pokemonstat ps\r\n
+                LEFT JOIN pokemon.pokemon mon ON ps.pokemonid = mon.pokemonid\r\n
+                WHERE ps.generationid <= """+gen+"""GROUP BY monid,monname,gen ORDER BY gen DESC, monid, monname) \r\n"""
+    preWith = "WITH monDamageQuery as (\r\n"
+    postWith = ")"
+    bstGroup = " GROUP BY damage1.pokemonid,mon.pokemonname \r\n"
+    bstOrder = " ORDER BY damage ASC\r\n"""
+    realSelect = """SELECT damage, bst, monDamageQuery.pokemonname, monBST.gen FROM monDamageQuery
+                    LEFT JOIN monBST ON monDamageQuery.pokemonid = monBST.monid
+                    GROUP BY damage, bst, monDamageQuery.pokemonname, monBST.gen
+                    ORDER BY damage ASC, bst DESC, monDamageQuery.pokemonname, monBST.gen"""
+    coverageQuery = monTypes+damage1+damage2+bstSelect+bstGroup+bstOrder
+    sql = preWith+coverageQuery+postWith+monBST+realSelect
+    pokemonBSTList = []
+    pokemonIDs = performSQL(sql)
+    if len(pokemonIDs) == 0:
+        pokemonString += "None"
+    for obstacle in pokemonIDs:
+        if len(pokemonBSTList) < int(limit):
+            obstacleName = obstacle[2]
+            if not obstacleName in pokemonBSTList:
+                pokemonBSTList.append(obstacleName)
+                pokemonString += obstacleName+", "
+    pokemonString = pokemonString[0:len(pokemonString)-2]
+    coverageString += pokemonString
+    coverageString = coverageString.replace(" Form)",")")
+    return coverageString
 
 def getGameID(channel):
     gameID = performSQL("""SELECT gameid FROM bot.channel WHERE channelname = '"""+channel+"'")[0][0]
