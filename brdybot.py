@@ -1,12 +1,11 @@
 #this is for opening the configuration file
 import sys
+#used to access the config ini file
 import configparser
-from typing import Dict
+#this is used for accessing the app/api
 import requests
-import json
-import pandas as pd
+#this imports the information schema, sqlalchemy, and more
 from app import *
-import crosstab.crosstab
 #this is for connecting to IRC
 import socket
 #this is for connecting to the postgres database
@@ -20,6 +19,7 @@ import traceback
 #sleep is so the bot won't overload during listening
 from time import sleep
 
+#creating the engine and sqlalchemy schema
 dbschema='pokemon,bot'
 config = configparser.ConfigParser()
 file = "chatbot.ini"
@@ -35,33 +35,42 @@ Base = declarative_base(engine)
 Base.metadata.create_all(engine)
 
 def main():
+    #fetching variables for each channel thread
     conn, token, user, readbuffer, server = connectionVariables()
     session = Session(engine)
+    #subquery for all channelids in the ChannelDeletion table
     deletedchannels = session.query(ChannelDeletion.channelid).all()
+    #retrieve a list of channels not in the ChannelDeletion table
     channels = session.query(Channel.channelname).filter(Channel.channelid.notin_(deletedchannels)).order_by(Channel.channelname).all()
     channels.append(('brdybot',))
     session.close()
+    #fetch the commands from the database
     commandDict = getCommands()
+    #loop through channels and create a listening thread for each one
     for channel in channels:
         channel = channel[0]
+        #retrieve all operants for the channel
         operators = getOperants(channel)
+        #create a listning thread
         threading.Thread(target=ircListen, args=(conn, token, user, channel, server, operators, commandDict)).start()
         sleep(2)
 
 def getOperants(channel):
     operators = []
     session = Session(engine)
+    #fetch list of operants
     operants = session.query(Operant.operantname).select_from(Operant).\
                 join(ChannelOperant,Operant.operantid == ChannelOperant.operantid).\
                 join(Channel,ChannelOperant.channelid == Channel.channelid).\
                 filter(Channel.channelname == channel).all()
     session.close()
-    print(operants)
+    #turn the list of operants into a normal list
     for operant in operants:
         operators.append(operant[0])
     return operators
 
 def connectionVariables():
+    #parameters for twitch irc server
     connection_data = ('irc.chat.twitch.tv', 6667)
     token = getToken()
     botName = "brdybot"
@@ -70,6 +79,7 @@ def connectionVariables():
     return connection_data, token, botName, readbuffer, server
 
 def getToken():
+    #unique connection token for my bot account
     config = configparser.ConfigParser()
     file = "chatbot.ini"
     config.read(file)
@@ -78,6 +88,7 @@ def getToken():
 
 def ircListen(conn, token, botName, channel, server, operators, commandDict):
     try:
+        #this flag is a placeholder in case I want to kill the thread for any reason - is isn't actually used to kill it currently
         listenFlag = True
         #joining the channel
         server = socket.socket()
