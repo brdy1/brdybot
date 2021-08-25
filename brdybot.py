@@ -21,7 +21,15 @@ import traceback
 from time import sleep
 
 dbschema='pokemon,bot'
-engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/postgres',connect_args={'options': '-csearch_path={}'.format(dbschema)})
+config = configparser.ConfigParser()
+file = "chatbot.ini"
+config.read(file)
+host = config['database']['host']
+database = config['database']['database']
+user = config['database']['user']
+password = config['database']['password']
+
+engine = create_engine('postgresql+psycopg2://'+user+':'+password+'@'+host+':5432/'+database,connect_args={'options': '-csearch_path={}'.format(dbschema)})
 Base = declarative_base(engine)
 
 Base.metadata.create_all(engine)
@@ -30,8 +38,8 @@ def main():
     conn, token, user, readbuffer, server = connectionVariables()
     session = Session(engine)
     deletedchannels = session.query(ChannelDeletion.channelid).all()
-    channels = session.query(Channel.channelname).filter(Channel.channelid.notin_(deletedchannels)).all()
-    # channels = [('brdy',)]
+    channels = session.query(Channel.channelname).filter(Channel.channelid.notin_(deletedchannels)).order_by(Channel.channelname).all()
+    channels.append(('brdybot',))
     session.close()
     commandDict = getCommands()
     for channel in channels:
@@ -155,7 +163,7 @@ def doCommand(commandrequestid):
     select = [  ChannelCommandRequest.channelcommandrequestid,
                 Command.commandname,
                 Channel.channelname,
-                Operant.operantid
+                Operant.operantname
                 ]
     ccr = session.query(*select).select_from(ChannelCommandRequest).\
                 join(Command).\
@@ -320,7 +328,6 @@ def logCommand(commandid,channelname,operantname,parameters):
                             values(commandid=commandid,channelid=channelid,operantid=operantid)
     result = session.execute(stmt)
     ccrid = result.inserted_primary_key[0]
-    session.commit()
     for parameter in parameters:
         parameter = parameter.replace("'","''")
         parameterid = insert(ChannelCommandRequestParameter).\
@@ -395,34 +402,42 @@ def listOperants(channel):
 
 def addClient(conn, token, botName, username, server):
     session = Session(engine)
-    channelid = getChannelID(username)
     operantid = session.query(Operant.operantid).filter(Operant.operantname == username).first()
-    if channelid == []:
-        channelid = insert(Channel).values(channelname=username,gameid=10).returning(Channel.channelid)
+    channelid = session.query(Channel.channelid).filter(Channel.channelname == username).first()
+    if not channelid:
+        channelid = insert(Channel).values(channelname=username,gameid=10)
         channelid = session.execute(channelid).inserted_primary_key[0]
         session.commit()
         session.close()
-    if operantid == []:
-        operantid = insert(Operant).values(operantname=username).returning(Operant.operantid)
+    else:
+        channelid = channelid[0]
+    operantid = session.query(Operant.operantid).filter(Operant.operantname == username).first()
+    if not operantid:
+        operantid = insert(Operant).values(operantname=username)
         operantid = session.execute(operantid).inserted_primary_key[0]
         session.commit()
         session.close()
-    operanttypeid = session.query(ChannelOperant.operanttypeid).\
-                        filter(ChannelOperant.channelid == channelid, ChannelOperant.operantid == operantid).first()
-    if operanttypeid == []:
-        channeloperantid = insert(ChannelOperant).values(channelid=channelid,operantid=operantid,operanttypeid=1).returning(ChannelOperant.channeloperantid)
-        channeloperantid = session.execute(channeloperantid)
+    else:
+        operantid = operantid[0]
+    channeloperantid = session.query(ChannelOperant.operanttypeid).filter(ChannelOperant.channelid == channelid, ChannelOperant.operantid == operantid).first()
+    if not channeloperantid:
+        channeloperantid = insert(ChannelOperant).values(channelid=channelid,operantid=operantid,operanttypeid=1)
+        channeloperantid = session.execute(channeloperantid).inserted_primary_key[0]
         session.commit()
         session.close()
-        message = username+""" - You have been successfully added to the channel list.
-                                Game has been set to FireRed. Use !pokegame in your channel to change the game.
-                                Note that I do store usernames and command usage records in the database for use in feature improvement.
-                                Your username will NEVER be shared with anyone for any reason.
-                                Use !brdybotleave in your channel to remove yourself from my channel list."""
+        message = username+""" - You have been successfully added to the channel list. Game has been set to FireRed. Use !pokegame in your channel to change the game. Note that I do store usernames and command usage records in the database for use in feature improvement. Your username will NEVER be shared. Use !brdybotleave in your channel to remove yourself from my channel list."""
         operants = getOperants(username)
         commandDict = getCommands()
         threading.Thread(target=ircListen, args=(conn, token, botName, username, server, operants,commandDict)).start()
-    elif operanttypeid[0][0] == 1:
+    else:
+        channeloperantid = channeloperantid[0]
+    channeldeletionid = session.query(ChannelDeletion.channelid).filter(ChannelDeletion.channelid == channelid).first()
+    if channeldeletionid:
+        session.query(ChannelDeletion.channelid).filter(ChannelDeletion.channelid == channelid).delete()
+        session.commit()
+        session.close()
+        message = username+""" - You have been successfully re-added to the channel list. Game has been set to FireRed. Use !pokegame in your channel to change the game. Note that I do store usernames and command usage records in the database for use in feature improvement. Your username will NEVER be shared. Use !brdybotleave in your channel to remove yourself from my channel list."""
+    elif session.query(ChannelOperant.operanttypeid).filter(ChannelOperant.channelid == channelid, ChannelOperant.operantid == operantid).first()[0] == 1:
         message = username+" - I should be operating in your channel. If I'm not, message brdy on Discord to correct the error."
     session.close()
     return message
@@ -430,7 +445,8 @@ def addClient(conn, token, botName, username, server):
 def removeClient(channel):
     session = Session(engine)
     channelid = getChannelID(channel)
-    channelid = insert(ChannelDeletion).values(channelid=channelid).returning(channelid)
+    channelid = insert(ChannelDeletion).values(channelid=channelid)
+    channeldeletionid = session.execute(channelid).inserted_primary_key[0]
     session.commit()
     session.close()
     message = channel+" - Successfully removed you from the channel list."
@@ -569,7 +585,7 @@ def getMonBST(monID, channel):
     bstAl = session.query(func.sum(PokemonStat.pokemonstatvalue)).\
                 filter(PokemonStat.pokemonid == monID,PokemonStat.generationid <= gen).\
                 group_by(PokemonStat.generationid).\
-                order_by(PokemonStat.generationid).\
+                order_by(PokemonStat.generationid.desc()).\
                     first()
     monBST = str(bstAl[0])
     return monBST
