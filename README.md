@@ -18,17 +18,37 @@ The bot has the following commands available:
  ![image](screens/ability.PNG) 
 
 - !botinfo: The bot returns basic information and links related to the bot.
+
 - !brdybotleave: Makes the bot leave the current channel. Only channel owner can use this command.
+
 - !bst: User sends the name of a Pokemon as a parameter, and the bot returns the BST for the current generation.
+
+ ![image](screens/bst.PNG)
+
 - !coverage: Takes one or more types as inputs, and outputs the number of Pokemon in the current game that fall into each maximum damage effectiveness bracket.
+
+ ![image](screens/coverage.PNG)
+
 - !gamelist: Lists the games available to be changed to with the !pokegame command.
+
+ ![image](screens/gamelist.PNG)
+
 - !help: User sends the name of a command, and the bot returns the description of a command to chat.
 
 ![image](screens/help.PNG)
 
 - !join: Any user may type this in the bot's channel to have it join their channel.
+
+ 
+
 - !learnset: User sends the name of a Pokemon as a parameter, and the bot returns the levels at which that Pokemon learns moves in the current game.
+
+ ![image](screens/learnset.PNG)
+
 - !listops: Lists all operants for the current channel.
+
+ ![image](screens/listops.PNG)
+
 - !mon: User sends a Pokemon name as a parameter, and the bot returns information about it to the chat.
 
  ![image](screens/mon.PNG)
@@ -61,24 +81,9 @@ The bot has the following commands available:
  ![image](screens/removeops.PNG)
 
 - !type: User sends the name of a Pokemon as a parameter, and the bot returns the type for the Pokemon in the current generation.
+
+ ![image](screens/type.PNG)
+
 - !weak: User sends a Pokemon name as a parameter, and the bot returns type effectiveness information about it to the chat.
-  
 
  ![image](screens/weak.PNG)
-
-
-
-- !weak <pokemon name>: Looks up a pokemon's weaknesses and resistances and returns them in an organized list according to damage effectiveness.
-
-- !nature <nature>: Looks up a nature name and returns the affected stats in the chat.
-  
-
-
-- !pokecom: Lists the available commands the bot can perform.
-
-
-
--!abbrevs: Lists the available games and their abbreviations for use with the !pokegame command.
-
-
-
