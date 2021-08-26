@@ -214,7 +214,7 @@ def doCommand(commandrequestid):
             message = monName
         else:
             game = getGame(channel)
-            message = monName + " ("+game+"): "+getMonMoves(monID,channel)
+            message = monName + " ("+game+"): "+getMonMoves(monID,True,channel)
     elif command == "type":
         monName = combineParameters(parameters)
         monID,monName = getMonID(monName,channel)
@@ -542,7 +542,7 @@ def getMonInfo(parameters,channel):
     monBST = getMonBST(monID, channel)
     monXPYield = getXPYield(monID, channel,5,5)
     monEvos = getMonEvos(monID, channel)
-    monMoves = getMonMoves(monID, channel)
+    monMoves = getMonMoves(monID, False, channel)
     #compiling all of the bits of info into one long string for return
     monInfo = "#" + monDex +" " + monName + " ("+game+") " + monTypes + " | Catch: "+monCaptureRate+"% | BST: " + monBST + " | L5 XP: " + monXPYield + " | " + monGrowth + " | " + monEvos + " | " + monMoves
     return monInfo
@@ -691,7 +691,7 @@ def getMonEvos(monID, channel):
             evoInfo += " " + evoUnique
     return evoInfo
 
-def getMonMoves(monID, channel):
+def getMonMoves(monID, names, channel):
     game = getGame(channel)
     sql = """SELECT DISTINCT mv.movename,pm.pokemonmovelevel FROM pokemon.pokemonmove pm 
             LEFT JOIN pokemon.move mv ON pm.moveid = mv.moveid
@@ -702,11 +702,16 @@ def getMonMoves(monID, channel):
     movesArray = performSQL(sql)
     if movesArray == []:
         moveList = "Does not learn moves"
-    else:
+    elif names == False:
         moveList = "Learns moves at "
         for move in movesArray:
             moveList += str(move[1])+", "
             #remove the extra comma and space after
+        moveList = moveList[0:len(moveList)-2]
+    else:
+        moveList = "Moves -  "
+        for move in movesArray:
+            moveList += str(move[0]+" ("+str(move[1])+"), ")
         moveList = moveList[0:len(moveList)-2]
     return moveList
 
