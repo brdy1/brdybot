@@ -4,6 +4,8 @@ import sys
 import configparser
 #this is used for accessing the app/api
 import requests
+#regular expression library to replace invalid characters
+import re
 #this imports the information schema, sqlalchemy, and more
 from app import *
 #this is for connecting to IRC
@@ -42,7 +44,6 @@ def main():
     deletedchannels = session.query(ChannelDeletion.channelid).all()
     #retrieve a list of channels not in the ChannelDeletion table
     channels = session.query(Channel.channelname).filter(Channel.channelid.notin_(deletedchannels)).order_by(Channel.channelname).all()
-    channels.append(('brdybot',))
     session.close()
     #fetch the commands from the database
     commandDict = getCommands()
@@ -105,25 +106,65 @@ def ircListen(conn, token, botName, channel, server, operators, commandDict):
                 break
             if "PING" in str(response):
                 server.send(bytes('PONG\r\n', 'utf-8'))
-            elif "!" in str(response):
+            elif ":!" in str(response):
+                print("Response: "+str(response))
                 #fetch the username,message,etc. from the response without grabbing pings, errors, or erroneous messages
+                #if the length of the response is more than 2 characters
                 if len(str(response)) > 2:
+                    # invalid_unicode_re = re.compile(u'[\U000e0000\U000e0002-\U000e001f]', re.UNICODE)
+                    # replacement_char=u'\uFFFD'
+                    print("parsing response")
+                    #split the response by exclamation and take the first item in that list
+                    #starting with the 2nd character and everything after
                     username = str(response).split('!',1)[0][1:]
-                    if ":" in str(response):
-                        splitResp = str(response).split(':')
-                        if len(splitResp) > 3:
-                            splitResp = str(response).split(':')[2]+str(response).split(':')[3]
-                        else:
-                            splitResp = str(response).split(':')[2]
-                        userMessage = splitResp[0:len(splitResp)-2]
-                else:
-                    userMessage = " "
-                command = userMessage.split(" ")[0].lower().replace("'","''")
-                parameters = userMessage.split(" ")[1:]
+                    #take message as everything after the 2nd exclamation
+                    userMessage = str(response).split('!',2)[2].split("\r")[0]
+                    if "PRIVMSG" in userMessage:
+                        #store index in case we need it
+                        precommandindex = str(response).index(':!')
+                        #split on :! and grab everything before
+                        precommand = str(response).split(":!",1)[0]
+                        #get the last item in list after splitting the precommand on @ symbol
+                        splitprecom = precommand.split("@")[len(precommand.split("@")-1)]
+                        #grab only the username
+                        username = splitprecom.split(".",1)[0].strip()
+                        # username = userMessage.split('!',1)[0][1:]
+                        userMessage = str(response)[precommandindex:].split(":")[0]
+                    # userMessage = invalid_unicode_re.sub(invalid_unicode_re,replacement_char,userMessage)
+                    command = userMessage.split(" ")[0].lower().replace("'","''").strip()
+                    parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")[1:]
+                # #if it's 2 characters or shorter, store the message as a string with one space
+                # else:
+                #     userMessage = " "
+                # #if there's a carriage return and exclamation still in the message, split it on the carriage return
+                # if '\r' in str(userMessage) and "!" in userMessage:
+                #     userMessage = userMessage.split("\r")[0]
+                #     print("Split userMessage to: "+userMessage)
+                #if there's carriage return in the parameters
+                # if '\r' in userMessage:
+                #     #split the parameters on it and use the first item in the list
+                #     userMessage = userMessage.split('\r')[0]
+                #     print("Split userMessage to: "+userMessage)
+                #split the message and fetch parameters
+                
+                #don't remove
+                # removeFlag = False
+                # #if it copied another line STILL, do more splitting on each individual parameter
+                # if '\r' in parameters:
+                #     for parameter in parameters:
+                #         if len(parameter.split("\r"))>1:
+                #             parameter = parameter.split("\r")[0]
+                #             removeFlag = True
+                #         elif removeFlag:
+                #             parameters.remove(parameter)
+                print("Username = " + str(username))
+                print("User message = " + str(userMessage))
+                print("Command = " + str(command))
+                print("Parameters = " + str(parameters))    
                 permissions = (username in operators) or (channel == 'brdybot') or (command == "!botinfo")
-                if ("!" in command[0:1]) and (command[1:] in list(commandDict.keys())) and permissions:
+                if (command in list(commandDict.keys())) and permissions:
                     print("\r\n\r\nreceived command:")
-                    commandid = commandDict[command[1:]]
+                    commandid = commandDict[command]
                     commandrequestid = logCommand(commandid,channel,username,parameters)
                     message = None
                     print(commandrequestid)
@@ -134,9 +175,12 @@ def ircListen(conn, token, botName, channel, server, operators, commandDict):
                         success = storeMessage(message, commandrequestid)
             sleep(1)
     except ConnectionResetError:
-        logException(None, "ConnectionResetError", channel)
+        logException(0, "ConnectionResetError", channel)
     except IndexError:
-        logException(commandrequestid,"IndexError", channel)
+        if commandrequestid:
+            logException(commandrequestid,"IndexError", channel)
+        else:
+            logException(0,"IndexError", channel)
     except KeyError:
         logException(commandrequestid,"KeyError", channel)
     except RuntimeError:
@@ -197,8 +241,26 @@ def doCommand(commandrequestid):
         message = getMoveInfo(parameters,channel)
     elif command == "ability":
         message = getAbilityInfo(parameters,channel)
-    # elif command == "xp":
-    #     message = getXPYield()
+    elif command == "xp":
+        monLevel = None
+        if len(parameters) == 3:
+            monName = parameters[0]
+            monLevel = parameters[1]
+            userLevel = parameters[2]
+        elif len(parameters) == 2:
+            monName = parameters[0]
+            monLevel = parameters[1]
+            userLevel = monLevel
+        if monLevel:
+            try:
+                monID,monName = getMonID(monName,channel)
+                wildxp,trainerxp = getXPYield(monID,channel,monLevel,userLevel)
+                message = monName+" XP at level "+monLevel+": Wild - "+wildxp+"; Trainer - "+trainerxp
+            except:
+                game = getGame(channel)
+                message = 'Could not get XP for '+monName+' in '+game+'.'
+        else:
+            message = "The !xp command requires at least 2 parameters - a pokemon name and that pokemon's level. Use !help xp for more information."
     elif command == "bst":
         monName = combineParameters(parameters)
         monID,monName = getMonID(monName,channel)
@@ -277,6 +339,7 @@ def commandHelp(command):
                     order_by(func.levenshtein(Command.commandname,command)).\
                     first()
     comName,comDesc = commandQuery
+    session.close()
     message = "Command !"+comName+": "+comDesc
     return message
 
@@ -340,7 +403,6 @@ def logCommand(commandid,channelname,operantname,parameters):
     result = session.execute(stmt)
     ccrid = result.inserted_primary_key[0]
     for parameter in parameters:
-        parameter = parameter.replace("'","''")
         parameterid = insert(ChannelCommandRequestParameter).\
                     values(channelcommandrequestid=ccrid,channelcommandrequestparameter=parameter).\
                     returning(ChannelCommandRequestParameter.channelcommandrequestparameterid)
@@ -355,7 +417,7 @@ def addOperants(parameters, channel):
     note = ""
     exists = False
     for parameter in parameters:
-        parameter = parameter.lower()
+        parameter = parameter.lower().replace('@','')
         operantid = session.query(Operant.operantid).filter(Operant.operantname == parameter).first()
         if operantid == None:
             operantid = insert(Operant).values(operantname=parameter)
@@ -440,6 +502,7 @@ def addClient(conn, token, botName, username, server):
         operants = getOperants(username)
         commandDict = getCommands()
         threading.Thread(target=ircListen, args=(conn, token, botName, username, server, operants,commandDict)).start()
+        return message
     else:
         channeloperantid = channeloperantid[0]
     channeldeletionid = session.query(ChannelDeletion.channelid).filter(ChannelDeletion.channelid == channelid).first()
@@ -448,10 +511,13 @@ def addClient(conn, token, botName, username, server):
         session.commit()
         session.close()
         message = username+""" - You have been successfully re-added to the channel list. Game has been set to FireRed. Use !pokegame in your channel to change the game. Note that I do store usernames and command usage records in the database for use in feature improvement. Your username will NEVER be shared. Use !brdybotleave in your channel to remove yourself from my channel list."""
-    elif session.query(ChannelOperant.operanttypeid).filter(ChannelOperant.channelid == channelid, ChannelOperant.operantid == operantid).first()[0] == 1:
-        message = username+" - I should be operating in your channel. If I'm not, message brdy on Discord to correct the error."
-    session.close()
-    return message
+        operants = getOperants(username)
+        commandDict = getCommands()
+        threading.Thread(target=ircListen, args=(conn, token, botName, username, server, operants,commandDict)).start()
+        return message
+    else:
+        message = "You are already on the channel list. If the bot is not responding in your channel, please message brdy to correct the error."
+        return message
 
 def removeClient(channel):
     session = Session(engine)
@@ -466,7 +532,11 @@ def removeClient(channel):
 def getMoveID(moveName):
     session = Session(engine)
     moveShtein = func.least(func.levenshtein(Move.movename,moveName),func.levenshtein(MoveNickname.movenickname,moveName)).label("moveShtein")
-    moveID = session.query(Move.moveid).join(MoveNickname,Move.moveid == MoveNickname.moveid).order_by(moveShtein).filter(moveShtein < 5).limit(1).first()
+    moveID = session.query(Move.moveid).\
+        join(MoveNickname,Move.moveid == MoveNickname.moveid).\
+        filter(moveShtein < 5).\
+        order_by(moveShtein).\
+        first()
     session.close()
     moveID = str(moveID[0])
     return moveID
@@ -485,24 +555,28 @@ def getMonID(monName,channel):
     gameid = getGameID(channel)
     gameName = getGame(channel)
     monShtein = (func.least(func.pokemon.levenshtein(Pokemon.pokemonname,monName),func.pokemon.levenshtein(PokemonNickname.pokemonnickname,monName))).label("monShtein")
-    monID,monAvailability = session.query(Pokemon.pokemonid,PokemonGameAvailability.pokemonavailabilitytypeid).\
+    monID = session.query(Pokemon.pokemonid,PokemonGameAvailability.pokemonavailabilitytypeid).\
                 select_from(Pokemon).\
                 join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid, isouter = True).\
                 join(PokemonGameAvailability,Pokemon.pokemonid == PokemonGameAvailability.pokemonid).\
                 filter(monShtein < 5,PokemonGameAvailability.gameid == gameid).\
                 order_by(monShtein).\
                 first()
-    if monID == []:
+    
+    if monID == None:
         errorString = "Could not find Pokemon "+monName+"."
         return None,errorString
-    elif monAvailability == (18):
+    else:
+        monAvailability = monID[1]
+        monID = monID[0]
+    monName = session.query(Pokemon.pokemonname).filter(Pokemon.pokemonid == monID).first()
+    monName = str(monName[0])
+    session.close()
+    if monAvailability == (18):
         errorString = monName + " is not available in "+gameName+"."
         return None,errorString
     monID = str(monID)
     print("GetMonID MonID: "+str(monID))
-    monName = session.query(Pokemon.pokemonname).filter(Pokemon.pokemonid == monID).first()
-    monName = str(monName[0])
-    session.close()
     return monID,monName
 
 def getMonInfo(parameters,channel):
@@ -540,11 +614,11 @@ def getMonInfo(parameters,channel):
     monCaptureRate = getCaptureRate(monCaptureRate, channel)
     monTypes = getMonTypes(monID, channel)
     monBST = getMonBST(monID, channel)
-    monXPYield = getXPYield(monID, channel,5,5)
+    monXPYield,emptyvar = getXPYield(monID, channel,8,5)
     monEvos = getMonEvos(monID, channel)
     monMoves = getMonMoves(monID, False, channel)
     #compiling all of the bits of info into one long string for return
-    monInfo = "#" + monDex +" " + monName + " ("+game+") " + monTypes + " | Catch: "+monCaptureRate+"% | BST: " + monBST + " | L5 XP: " + monXPYield + " | " + monGrowth + " | " + monEvos + " | " + monMoves
+    monInfo = "#" + monDex +" " + monName + " ("+game+") " + monTypes + " | Catch: "+monCaptureRate+"% | BST: " + monBST + " | Lvl 8 XP: " + monXPYield + " | " + monGrowth + " | " + monEvos + " | " + monMoves
     return monInfo
 
 def getMonGrowth(monID,channel):
@@ -578,9 +652,13 @@ def getMonTypes(monID, channel):
     data = requests.get(url+"?id="+monID+"&gen="+gen)
     data = data.json()
     typeList = list(data[monID]['types'].keys())
+    #print(data)
+    #print(typeList)
     for mType in typeList:
-        if data[monID]['types'][mType] == 'false':
-            typeList.remove(mType)
+        for generationkey in data[monID]['types'][mType]:
+            if data[monID]['types'][mType][generationkey] == False:
+                if mType in typeList:
+                    typeList.remove(mType)
     #if there are two types, store as (Type1/Type2)
     types = "("+str(typeList[0])
     if len(typeList) > 1:
@@ -609,24 +687,52 @@ def getCaptureRate(captureRate,channel):
     return captureRate
 
 def getXPYield(monID, channel,enemylevel,monlevel):
-    gen = getGeneration(channel)
-    gen = int(gen)
+    enemylevel = float(enemylevel)
+    if monlevel == None:
+        monlevel = enemylevel
+    monlevel = float(monlevel)
+    gen = int(getGeneration(channel))
     session = Session(engine)
     try:
         xpyieldAl = session.query(PokemonExperienceYield.experienceyieldvalue,PokemonExperienceYield.generationid).\
-                    filter(PokemonExperienceYield.pokemonid == int(monID), PokemonExperienceYield.generationid <= gen).\
-                    order_by(PokemonExperienceYield.generationid.desc()).\
-                        first()
+                        filter(PokemonExperienceYield.pokemonid == int(monID), PokemonExperienceYield.generationid <= gen).\
+                        order_by(PokemonExperienceYield.generationid.desc()).\
+                            first()
         print(xpyieldAl)
-        monyield = xpyieldAl[0]
-        xp = monyield*enemylevel/7
-        xp=str(int(round(xp,0)))
+        session.close()
+        monyield = float(xpyieldAl[0])
+        a = 1
+        b = monyield
+        L = enemylevel
+        L2 = monlevel
+        s = 1
+        if gen != 5 and gen != 7:
+            wildxp = str(int(math.floor(b*a*L/7)))
+            a = 1.5
+            trainerxp = str(int(math.floor(b*a*L/7)))
+        elif gen == 5:
+            wildxp = str(int(math.floor((1*monyield*enemylevel/5)*math.pow((2*enemylevel+10)/(enemylevel+monlevel+10),2.5))+1))
+            a = 1.5
+            trainerxp = str(int(math.floor((1.5*monyield*enemylevel/5)*math.pow((2*enemylevel+10)/(enemylevel+monlevel+10),2.5))+1))
+        elif gen == 7:
+            monEvo = getMonEvoArray(monID,channel)
+            try:
+                evoLevel = monEvo[0][1]
+            except:
+                evoLevel = L2+1
+            if int(L2) >= int(evoLevel):
+                v = 1.2
+            else:
+                v = 1
+            wildxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
+            trainerxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
+        return wildxp,trainerxp
     except:
         traceback.print_exc()
-        xp='unknown'
-    return xp
+        string='unknown'
+        return string,string
 
-def getMonEvos(monID, channel):
+def getMonEvoArray(monID,channel):
     gen = getGeneration(channel)
     sql = "SELECT DISTINCT mon.pokemonname"
     sql += """, pel.pokemonevolutionlevel,
@@ -647,8 +753,12 @@ def getMonEvos(monID, channel):
     sql += """ AND gg.generationid = (SELECT MAX(gg.generationid) FROM pokemon.pokemonevolution pe
                                     LEFT JOIN pokemon.gamegroup gg ON pe.gamegroupid = gg.gamegroupid
                                     WHERE gg.generationid <="""+gen+""" AND pe.basepokemonid = """+monID+""")
-                ORDER BY generationid DESC"""
+                ORDER BY generationid DESC, pet.evolutiontypeid ASC"""
     evoArray = performSQL(sql)
+    return evoArray
+
+def getMonEvos(monID, channel):
+    evoArray = getMonEvoArray(monID,channel)
     if evoArray == []:
         evoInfo = "Does not evolve"
     else:
@@ -679,10 +789,10 @@ def getMonEvos(monID, channel):
         if not evoLevel == 'None':
             evoInfo += " at level "+evoLevel
         if not evoItem == 'None':
-            if evoType == 4:
-                evoInfo += " after being exposed to " + evoItem
-            else:
+            if evoType == 10 or evoType == 11:
                 evoInfo += " while holding " + evoItem
+            else:
+                evoInfo += " after being exposed to " + evoItem
         if not evoLocation == 'None':
             evoInfo += " at " + evoLocation
         if not evoMove == 'None':
@@ -726,18 +836,21 @@ def getMoveInfo(parameters, channel):
         moveInfo = requests.get(url+moveName)
         moveInfo = moveInfo.json()
         mvName = str(list(moveInfo.keys())[0])
-        moveType = moveInfo[mvName][gen]['type']
-        if moveInfo[mvName][gen]['contact'] == 'true':
-            moveContact = 'C'
+        if gen in moveInfo[mvName].keys():
+            moveType = moveInfo[mvName][gen]['type']
+            if moveInfo[mvName][gen]['contact'] == True:
+                moveContact = 'C'
+            else:
+                moveContact = 'NC'
+            accuracy = str(moveInfo[mvName][gen]['accuracy'])
+            description = str(moveInfo[mvName][gen]['description'])
+            power = str(moveInfo[mvName][gen]['power'])
+            pp = str(moveInfo[mvName][gen]['pp'])
+            priority = str(moveInfo[mvName][gen]['priority'])
+            category = str(moveInfo[mvName][gen]['category'])
+            info = mvName+" - Gen " +gen+ ": ("+moveType+", "+category+", "+moveContact+") | PP: "+pp+" | Power: "+power+" | Acc.: "+accuracy+" | Priority: "+priority+" | Summary: "+description
         else:
-            moveContact = 'NC'
-        accuracy = str(moveInfo[mvName][gen]['accuracy'])
-        description = str(moveInfo[mvName][gen]['description'])
-        power = str(moveInfo[mvName][gen]['power'])
-        pp = str(moveInfo[mvName][gen]['pp'])
-        priority = str(moveInfo[mvName][gen]['priority'])
-        category = str(moveInfo[mvName][gen]['category'])
-        info = mvName+" - Gen " +gen+ ": ("+moveType+", "+category+", "+moveContact+") | PP: "+pp+" | Power: "+power+" | Acc.: "+accuracy+" | Priority: "+priority+" | Summary: "+description
+            info = mvName+" is not in generation "+gen+"."
     return info
 
 def getAbilityInfo(parameters, channel):
@@ -757,7 +870,6 @@ def getAbilityInfo(parameters, channel):
         if not abilityTuple == []:
             abilityName = str(abilityTuple[0][0])
             abilitySum = str(abilityTuple[0][1])
-            print(abilitySum)
             abilityInfo = abilityName + " (Gen "+gen+"): " + abilitySum
         else:
             abilityInfo = "Could not find info for ability '"+abilityName+"' in generation " + gen + "."
@@ -797,7 +909,6 @@ def getWeaknessInfo(parameters, channel):
         weaknessInfo = "I was not able to find weakness info for that Pokemon."
         return weaknessInfo
     gen = getGeneration(channel)
-    print(gen)
     url = "http://127.0.0.1:5000/api/v1.0/weakness"
     data = requests.get(url+"?id="+monID+"&gen="+gen+"&channel="+channel)
     monTypes = getMonTypes(monID,channel)
@@ -873,10 +984,10 @@ def setGame(game, channel, server):
         #if we fail to find a game, try using the parameters as a full game name with levenshtein distance < 5
         if selectedGame == []:
             fullGame = gameName.title().replace("'","''")
-            selectedGame= performSQL("""WITH ldist as (SELECT gg.gamegroupname, gg.gamegroupabbreviation,pokemon.levenshtein(gm.gamename, '"""+gameName+"""')
+            selectedGame= performSQL("""WITH ldist as (SELECT gg.gamegroupname, gg.gamegroupabbreviation,pokemon.levenshtein(gm.gamename, '"""+fullGame+"""')
                                     AS distance,gm.gamename,gm.gameid FROM pokemon.game gm
                                     LEFT JOIN pokemon.gamegroup gg ON gm.gamegroupid = gg.gamegroupid)
-                                    SELECT * FROM ldist WHERE distance < 4
+                                    SELECT * FROM ldist WHERE distance < 6
                                     ORDER BY distance LIMIT 1""")
         #if we found a game in either query above, find the generation, update the config, and say there was a success!
         if not selectedGame == []:

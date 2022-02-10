@@ -3,7 +3,7 @@ This is a bot adapted from [chatbot-python-sample](https://github.com/twitchdev/
 
 The bot uses a PostgreSQL database with data scraped and taken from [Serebii.net](https://www.serebii.net), [Bulbapedia](https://bulbapedia.bulbagarden.net/wiki/Main_Page), [veekun's Pokedex](https://github.com/veekun/pokedex), [Smogon University](https://www.smogon.com), and [pokemondb.net](https://pokemondb.net/).
 
- ![image](screens/chatbotshot.png)
+ ![image](screens/datadiagram.png)
 
 # Bot
 The bot has the following commands available:
@@ -38,8 +38,6 @@ The bot has the following commands available:
 ![image](screens/help.PNG)
 
 - !join: Any user may type this in the bot's channel to have it join their channel.
-
- 
 
 - !learnset: User sends the name of a Pokemon as a parameter, and the bot returns the levels at which that Pokemon learns moves in the current game.
 
