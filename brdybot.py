@@ -125,7 +125,7 @@ def ircListen(conn, token, botName, channel, server, operators, commandDict):
                         #split on :! and grab everything before
                         precommand = str(response).split(":!",1)[0]
                         #get the last item in list after splitting the precommand on @ symbol
-                        splitprecom = precommand.split("@")[len(precommand.split("@")-1)]
+                        splitprecom = precommand.split("@")[len(precommand.split("@"))-1]
                         #grab only the username
                         username = splitprecom.split(".",1)[0].strip()
                         # username = userMessage.split('!',1)[0][1:]
