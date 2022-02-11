@@ -670,6 +670,9 @@ def getMonTypes(monID, channel):
 
 def getMonBST(monID, channel):
     gen = getGeneration(channel)
+    # url = "http://127.0.0.1:5000/api/v1.0/bst"
+    # data = requests.get(url+"?id="+monID+"&gen="+gen)
+    # monBST = data
     session = Session(engine)
     bstAl = session.query(func.sum(PokemonStat.pokemonstatvalue)).\
                 filter(PokemonStat.pokemonid == monID,PokemonStat.generationid <= gen).\

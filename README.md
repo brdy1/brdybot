@@ -3,6 +3,8 @@ This is a bot adapted from [chatbot-python-sample](https://github.com/twitchdev/
 
 The bot uses a PostgreSQL database with data scraped and taken from [Serebii.net](https://www.serebii.net), [Bulbapedia](https://bulbapedia.bulbagarden.net/wiki/Main_Page), [veekun's Pokedex](https://github.com/veekun/pokedex), [Smogon University](https://www.smogon.com), and [pokemondb.net](https://pokemondb.net/).
 
+The IRC listener (chatbot) joins your channel, listens for and sends commands to the API to fetch data from the database, and prints the information gathered from the database in a channel message.
+
  ![image](screens/datadiagram.png)
 
 # Bot
