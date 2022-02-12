@@ -908,70 +908,70 @@ def coverage(types):
     coverageString = coverageString.replace(" Form)",")")
     return coverageString
 
-@app.route("/api/v1.0/bst")
-def move():
-    monID = request.args.get("id")
-    gen = request.args.get("gen")
-    session = Session(engine)
-    bstAl = session.query(func.sum(PokemonStat.pokemonstatvalue)).\
-                filter(PokemonStat.pokemonid == monID,PokemonStat.generationid <= gen).\
-                group_by(PokemonStat.generationid).\
-                order_by(PokemonStat.generationid.desc()).\
-                    first()
-    monBST = str(bstAl[0])
-    return monBST
+# @app.route("/api/v1.0/bst")
+# def move():
+#     monID = request.args.get("id")
+#     gen = request.args.get("gen")
+#     session = Session(engine)
+#     bstAl = session.query(func.sum(PokemonStat.pokemonstatvalue)).\
+#                 filter(PokemonStat.pokemonid == monID,PokemonStat.generationid <= gen).\
+#                 group_by(PokemonStat.generationid).\
+#                 order_by(PokemonStat.generationid.desc()).\
+#                     first()
+#     monBST = str(bstAl[0])
+#     return monBST
 
-@app.route("/api/v1.0/xp")
-def xp():
-    monID = request.args.get("id")
-    gen = request.args.get("gen")
-    enemylevel = request.args.get("enemylevel")
-    monlevel = request.args.get("monlevel")
+# @app.route("/api/v1.0/xp")
+# def xp():
+#     monID = request.args.get("id")
+#     gen = request.args.get("gen")
+#     enemylevel = request.args.get("enemylevel")
+#     monlevel = request.args.get("monlevel")
 
-    enemylevel = float(enemylevel)
-    if monlevel == None:
-        monlevel = enemylevel
-    monlevel = float(monlevel)
-    gen = int(getGeneration(channel))
-    session = Session(engine)
-    try:
-        xpyieldAl = session.query(PokemonExperienceYield.experienceyieldvalue,PokemonExperienceYield.generationid).\
-                        filter(PokemonExperienceYield.pokemonid == int(monID), PokemonExperienceYield.generationid <= gen).\
-                        order_by(PokemonExperienceYield.generationid.desc()).\
-                            first()
-        print(xpyieldAl)
-        session.close()
-        monyield = float(xpyieldAl[0])
-        a = 1
-        b = monyield
-        L = enemylevel
-        L2 = monlevel
-        s = 1
-        if gen != 5 and gen != 7:
-            wildxp = str(int(math.floor(b*a*L/7)))
-            a = 1.5
-            trainerxp = str(int(math.floor(b*a*L/7)))
-        elif gen == 5:
-            wildxp = str(int(math.floor((1*monyield*enemylevel/5)*math.pow((2*enemylevel+10)/(enemylevel+monlevel+10),2.5))+1))
-            a = 1.5
-            trainerxp = str(int(math.floor((1.5*monyield*enemylevel/5)*math.pow((2*enemylevel+10)/(enemylevel+monlevel+10),2.5))+1))
-        elif gen == 7:
-            monEvo = getMonEvoArray(monID,channel)
-            try:
-                evoLevel = monEvo[0][1]
-            except:
-                evoLevel = L2+1
-            if int(L2) >= int(evoLevel):
-                v = 1.2
-            else:
-                v = 1
-            wildxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
-            trainerxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
-        return wildxp,trainerxp
-    except:
-        traceback.print_exc()
-        string='unknown'
-        return string,string
+#     enemylevel = float(enemylevel)
+#     if monlevel == None:
+#         monlevel = enemylevel
+#     monlevel = float(monlevel)
+#     gen = int(getGeneration(channel))
+#     session = Session(engine)
+#     try:
+#         xpyieldAl = session.query(PokemonExperienceYield.experienceyieldvalue,PokemonExperienceYield.generationid).\
+#                         filter(PokemonExperienceYield.pokemonid == int(monID), PokemonExperienceYield.generationid <= gen).\
+#                         order_by(PokemonExperienceYield.generationid.desc()).\
+#                             first()
+#         print(xpyieldAl)
+#         session.close()
+#         monyield = float(xpyieldAl[0])
+#         a = 1
+#         b = monyield
+#         L = enemylevel
+#         L2 = monlevel
+#         s = 1
+#         if gen != 5 and gen != 7:
+#             wildxp = str(int(math.floor(b*a*L/7)))
+#             a = 1.5
+#             trainerxp = str(int(math.floor(b*a*L/7)))
+#         elif gen == 5:
+#             wildxp = str(int(math.floor((1*monyield*enemylevel/5)*math.pow((2*enemylevel+10)/(enemylevel+monlevel+10),2.5))+1))
+#             a = 1.5
+#             trainerxp = str(int(math.floor((1.5*monyield*enemylevel/5)*math.pow((2*enemylevel+10)/(enemylevel+monlevel+10),2.5))+1))
+#         elif gen == 7:
+#             monEvo = getMonEvoArray(monID,channel)
+#             try:
+#                 evoLevel = monEvo[0][1]
+#             except:
+#                 evoLevel = L2+1
+#             if int(L2) >= int(evoLevel):
+#                 v = 1.2
+#             else:
+#                 v = 1
+#             wildxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
+#             trainerxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
+#         return wildxp,trainerxp
+#     except:
+#         traceback.print_exc()
+#         string='unknown'
+#         return string,string
 
 
 
