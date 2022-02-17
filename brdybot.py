@@ -103,77 +103,39 @@ def ircListen(conn, token, botName, channel, server, operators, commandDict):
             message = None
             response = server.recv(2048).decode('utf-8')
             if len(response) == 0:
-                break
+                continue
             if "PING" in str(response):
                 server.send(bytes('PONG\r\n', 'utf-8'))
             elif ":!" in str(response):
                 print("Response: "+str(response))
-                #fetch the username,message,etc. from the response without grabbing pings, errors, or erroneous messages
-                #if the length of the response is more than 2 characters
-                if len(str(response)) > 2:
-                    # invalid_unicode_re = re.compile(u'[\U000e0000\U000e0002-\U000e001f]', re.UNICODE)
-                    # replacement_char=u'\uFFFD'
-                    print("parsing response")
-                    #split the response by exclamation and take the first item in that list
-                    #starting with the 2nd character and everything after
-                    username = str(response).split('!',1)[0][1:]
-                    #take message as everything after the 2nd exclamation
-                    userMessage = str(response).split('!',2)[2].split("\r")[0]
-                    if "PRIVMSG" in userMessage:
-                        #store index in case we need it
-                        precommandindex = str(response).index(':!')
-                        #split on :! and grab everything before
-                        precommand = str(response).split(":!",1)[0]
-                        #get the last item in list after splitting the precommand on @ symbol
-                        splitprecom = precommand.split("@")[len(precommand.split("@"))-1]
-                        #grab only the username
-                        username = splitprecom.split(".",1)[0].strip()
-                        # username = userMessage.split('!',1)[0][1:]
-                        userMessage = str(response)[precommandindex:].split(":")[0]
-                    # userMessage = invalid_unicode_re.sub(invalid_unicode_re,replacement_char,userMessage)
-                    command = userMessage.split(" ")[0].lower().replace("'","''").strip()
-                    parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")[1:]
-                # #if it's 2 characters or shorter, store the message as a string with one space
-                # else:
-                #     userMessage = " "
-                # #if there's a carriage return and exclamation still in the message, split it on the carriage return
-                # if '\r' in str(userMessage) and "!" in userMessage:
-                #     userMessage = userMessage.split("\r")[0]
-                #     print("Split userMessage to: "+userMessage)
-                #if there's carriage return in the parameters
-                # if '\r' in userMessage:
-                #     #split the parameters on it and use the first item in the list
-                #     userMessage = userMessage.split('\r')[0]
-                #     print("Split userMessage to: "+userMessage)
-                #split the message and fetch parameters
-                
-                #don't remove
-                # removeFlag = False
-                # #if it copied another line STILL, do more splitting on each individual parameter
-                # if '\r' in parameters:
-                #     for parameter in parameters:
-                #         if len(parameter.split("\r"))>1:
-                #             parameter = parameter.split("\r")[0]
-                #             removeFlag = True
-                #         elif removeFlag:
-                #             parameters.remove(parameter)
-                print("Username = " + str(username))
-                print("User message = " + str(userMessage))
-                print("Command = " + str(command))
-                print("Parameters = " + str(parameters))    
-                permissions = (username in operators) or (channel == 'brdybot') or (command == "!botinfo")
-                if (command in list(commandDict.keys())) and permissions:
-                    print("\r\n\r\nreceived command:")
-                    commandid = commandDict[command]
-                    commandrequestid = logCommand(commandid,channel,username,parameters)
-                    message = None
-                    print(commandrequestid)
-                    message = doCommand(commandrequestid)
-                    if message:
-                        chatMessage(message,channel,server)
-                        operators = getOperants(channel)
-                        success = storeMessage(message, commandrequestid)
-            sleep(1)
+                responsesplit = str(response).split(":!")
+                for precommand in responsesplit:
+                    print("Precommand: "+str(precommand))
+                    if "PRIVMSG" in precommand:
+                        username = precommand.split("@")[len(precommand.split("@"))-1].split(".",1)[0].strip()
+                        try:
+                            userMessage = responsesplit[responsesplit.index(precommand)+1].split(":",1)[0].strip()
+                            command = userMessage.split(" ")[0].lower().replace("'","''").strip()
+                            parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")[1:]
+                            print("Username = " + str(username))
+                            print("User message = " + str(userMessage))
+                            print("Command = " + str(command))
+                            print("Parameters = " + str(parameters))    
+                            permissions = (username in operators) or (channel == 'brdybot') or (command == "!botinfo")
+                            if (command in list(commandDict.keys())) and permissions:
+                                print("\r\n\r\nreceived command:")
+                                commandid = commandDict[command]
+                                commandrequestid = logCommand(commandid,channel,username,parameters)
+                                message = None
+                                print(commandrequestid)
+                                message = doCommand(commandrequestid)
+                                if message:
+                                    chatMessage(message,channel,server)
+                                    operators = getOperants(channel)
+                                    success = storeMessage(message, commandrequestid)
+                        except:
+                            traceback.print_exc()
+                    sleep(1)
     except ConnectionResetError:
         logException(0, "ConnectionResetError", channel)
     except IndexError:
