@@ -41,20 +41,23 @@ def main():
     conn, token, user, readbuffer, server = connectionVariables()
     session = Session(engine)
     #subquery for all channelids in the ChannelDeletion table
-    deletedchannels = session.query(ChannelDeletion.channelid).all()
+    deletedchannels = session.query(ChannelDeletion.twitchuserid).all()
     #retrieve a list of channels not in the ChannelDeletion table
-    channels = session.query(Channel.channelname).filter(Channel.channelid.notin_(deletedchannels)).order_by(Channel.channelname).all()
+    twitchusers = session.query(TwitchUser.twitchusername).select_from(Channel)\
+        .join(TwitchUser)\
+        .filter(TwitchUser.twitchuserid.notin_(deletedchannels))\
+        .order_by(TwitchUser.twitchusername).all()
     session.close()
     #fetch the commands from the database
     commandDict = getCommands()
     #loop through channels and create a listening thread for each one
-    for channel in channels:
+    for channel in twitchusers:
         channel = channel[0]
         #retrieve all operants for the channel
         operators = getOperants(channel)
         #create a listning thread
         threading.Thread(target=ircListen, args=(conn, token, user, channel, server, operators, commandDict)).start()
-        sleep(2)
+        sleep(1.5)
 
 def getOperants(channel):
     operators = []
@@ -89,6 +92,7 @@ def getToken():
 
 def ircListen(conn, token, botName, channel, server, operators, commandDict):
     try:
+        channelid = getChannelID(channel)
         #this flag is a placeholder in case I want to kill the thread for any reason - is isn't actually used to kill it currently
         listenFlag = True
         #joining the channel
@@ -122,7 +126,7 @@ def ircListen(conn, token, botName, channel, server, operators, commandDict):
                             print("Command = " + str(command))
                             print("Parameters = " + str(parameters))    
                             permissions = (username in operators) or (channel == 'brdybot') or (command == "!botinfo")
-                            if (command in list(commandDict.keys())) and permissions:
+                            if (command in list(commandDict.keys())) and (permissions or username == 'brdy'):
                                 print("\r\n\r\nreceived command:")
                                 commandid = commandDict[command]
                                 commandrequestid = logCommand(commandid,channel,username,parameters)
@@ -144,26 +148,47 @@ def ircListen(conn, token, botName, channel, server, operators, commandDict):
         else:
             logException(0,"IndexError", channel)
     except KeyError:
-        logException(commandrequestid,"KeyError", channel)
+        if commandrequestid:
+            logException(commandrequestid,"KeyError", channel)
+        else:
+            logException(0,"KeyError", channel)
     except RuntimeError:
-        logException(commandrequestid,"RuntimeError", channel)
+        if commandrequestid:
+            logException(commandrequestid,"RuntimeError", channel)
+        else:
+            logException(0,"RuntimeError", channel)
     except SystemExit:
-        logException(commandrequestid,"SystemExit", channel)
+        if commandrequestid:
+            logException(commandrequestid,"SystemExit", channel)
+        else:
+            logException(0,"SystemExit", channel)
     except ValueError:
-        logException(commandrequestid,"ValueError", channel)
+        if commandrequestid:
+            logException(commandrequestid,"ValueError", channel)
+        else:
+            logException(0,"ValueError", channel)
     except BrokenPipeError:
-        logException(commandrequestid,"BrokenPipeError", channel)
+        if commandrequestid:
+            logException(commandrequestid,"BrokenPipeError", channel)
+        else:
+            logException(0,"BrokenPipeError", channel)
     except ConnectionAbortedError:
-        logException(commandrequestid,"ConnectionAbortedError", channel)
+        logException(0,"ConnectionAbortedError", channel)
     except ConnectionRefusedError:
-        logException(commandrequestid,"ConnectionRefusedError", channel)
+        logException(0,"ConnectionRefusedError", channel)
     except FileNotFoundError:
-        logException(commandrequestid,"FileNotFoundError", channel)
+        if commandrequestid:
+            logException(commandrequestid,"FileNotFoundError", channel)
+        else:
+            logException(0,"FileNotFoundError", channel)
     except TimeoutError:
-        logException(commandrequestid,"TimeoutError", channel)
+        logException(0,"TimeoutError", channel)
     except Exception:
-        logException(commandrequestid,"OtherError", channel)
-
+        if commandrequestid:
+            logException(commandrequestid,"OtherError", channel)
+        else:
+            logException(0,"OtherError", channel)
+            
 def getCommands():
     session = Session(engine)
     commands = session.query(Command.commandid,Command.commandname).order_by(Command.commandname).all()
@@ -248,7 +273,7 @@ def doCommand(commandrequestid):
             game = getGame(channel)
             message = monName + " ("+game+"): " + getMonTypes(monID,channel).replace("(","").replace(")","")
     # elif command == "evolution":
-    #     message = getMonEvo()
+    #     message = getMonEvo() 
     elif command == "nature":
         message = getNatureInfo(parameters,channel)
     elif command == "weak":
@@ -329,10 +354,10 @@ def logException(commandrequestid, exception, channel):
         errortype = session.query(ErrorType.errortypeid).filter(ErrorType.errortypename == "OtherError").first()
     if commandrequestid:
         stmt = insert(ChannelError).\
-                    values(channelcommandrequestid=commandrequestid, errortypeid=errortype)
+                    values(channelcommandrequestid=commandrequestid, channelid=channelid, errortypeid=errortype)
     else:
         stmt = insert(ChannelError).\
-                    values(errortypeid=errortype)
+                    values(errortypeid=errortype,channelid=channelid)
     channelerrorid = session.execute(stmt).inserted_primary_key[0]
     session.commit()
     session.close()
@@ -342,7 +367,6 @@ def logException(commandrequestid, exception, channel):
     conn, token, user, readbuffer, server = connectionVariables()
     operators = getOperants(channel) 
     threading.Thread(target=ircListen, args=(conn, token, "brdybot", channel, server, operators, commandDict)).start()
-    sys.exit()
 
 def getChannelID(channel):
     session = Session(engine)
@@ -614,11 +638,11 @@ def getMonTypes(monID, channel):
     data = requests.get(url+"?id="+monID+"&gen="+gen)
     data = data.json()
     typeList = list(data[monID]['types'].keys())
-    #print(data)
-    #print(typeList)
+    print(data)
+    print(typeList)
     for mType in typeList:
         for generationkey in data[monID]['types'][mType]:
-            if data[monID]['types'][mType][generationkey] == False:
+            if data[monID]['types'][mType][gen] == False:
                 if mType in typeList:
                     typeList.remove(mType)
     #if there are two types, store as (Type1/Type2)
@@ -754,7 +778,7 @@ def getMonEvos(monID, channel):
         if not evoLevel == 'None':
             evoInfo += " at level "+evoLevel
         if not evoItem == 'None':
-            if evoType == 10 or evoType == 11:
+            if evoType == 10 or evoType == 11 or evoType == 17:
                 evoInfo += " while holding " + evoItem
             else:
                 evoInfo += " after being exposed to " + evoItem

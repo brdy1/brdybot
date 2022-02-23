@@ -227,6 +227,7 @@ class Channel(Base):
     channelid = Column("channelid",Integer,primary_key=True)
     channelname = Column("channelname",String(35))
     gameid = Column("gameid",Integer,ForeignKey("game.gameid"))
+    twitchuserid = Column("twitchuserid",Integer,ForeignKey("twitchuser.twitchuserid"))
 
 class ChannelCommandRequest(Base):
     __tablename__ = 'channelcommandrequest'
@@ -247,6 +248,7 @@ class ChannelDeletion(Base):
     __tablename__ = 'channeldeletion'
     channelid = Column("channelid",Integer,ForeignKey("channel.channelid"),primary_key=True)
     deletiontime = Column('deletiontime',DateTime)
+    twitchuserid = Column('twitchuserid',Integer,ForeignKey("twitchuser.twitchuserid"))
 
 class ChannelError(Base):
     __tablename__ = 'channelerror'
@@ -254,6 +256,7 @@ class ChannelError(Base):
     channelcommandrequestid = Column("channelcommandrequestid",Integer,ForeignKey("channelcommandrequest.channelcommandrequestid"))
     errortypeid = Column("errortypeid",Integer,ForeignKey("errortype.errortypeid"))
     channelerrortime = Column("channelerrortime",DateTime)
+    channelid = Column("channelid",Integer,ForeignKey("channel.channelid"))
 
 class ChannelOperant(Base):
     __tablename__ = 'channeloperant'
@@ -292,6 +295,7 @@ class Operant(Base):
     __tablename__ = 'operant'
     operantid = Column("operantid",Integer,primary_key=True)
     operantname = Column("operantname",String(50))
+    twitchuserid = Column("twitchuserid",Integer,ForeignKey("twitchuser.twitchuserid"))
 
 class OperantType(Base):
     __tablename__ = 'operanttype'
@@ -303,6 +307,11 @@ class OperantTypeCommand(Base):
     __tablename__ = 'operanttypecommand'
     operanttypeid = Column("operanttypeid",Integer,ForeignKey("operanttype.operanttypeid"),primary_key=True)
     commandid = Column("commandid",Integer,ForeignKey("command.commandid"))
+
+class TwitchUser(Base):
+    __tablename__ = 'twitchuser'
+    twitchuserid = Column("twitchuserid",Integer,primary_key=True)
+    twitchusername = Column("twitchusername",String(100))
 
 Base.metadata.create_all(engine)
 
