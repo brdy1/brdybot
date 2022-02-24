@@ -110,7 +110,7 @@ def ircListen(conn, token, botName, channel, server, operators, commandDict):
             if len(response) == 0:
                 continue
             if "PING" in str(response):
-                server.send(bytes('PONG\r\n', 'utf-8'))
+                server.send(bytes('PONG :tmi.twitch.tv\r\n', 'utf-8'))
             elif ":!" in str(response):
                 print("Response: "+str(response))
                 responsesplit = str(response).split(":!")
