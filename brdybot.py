@@ -8,6 +8,7 @@ import requests
 import re
 #this imports the information schema, sqlalchemy, and more
 from app import *
+from schema import *
 #this is for connecting to IRC
 import socket
 #this is for connecting to the postgres database
