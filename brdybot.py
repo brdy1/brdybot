@@ -601,7 +601,7 @@ def getMonInfo(parameters,channel):
     monCaptureRate = getCaptureRate(monCaptureRate, channel)
     monTypes = getMonTypes(monID, channel)
     monBST = getMonBST(monID, channel)
-    monXPYield,emptyvar = getXPYield(monID, channel,8,5)
+    emptyvar,monXPYield = getXPYield(monID, channel,8,5)
     monEvos = getMonEvos(monID, channel)
     monMoves = getMonMoves(monID, False, channel)
     #compiling all of the bits of info into one long string for return
@@ -699,7 +699,7 @@ def getXPYield(monID, channel,enemylevel,monlevel):
         if gen != 5 and gen != 7:
             wildxp = str(int(math.floor(b*a*L/7)))
             a = 1.5
-            trainerxp = str(int(math.floor(b*a*L/7)))
+            trainerxp = str(int(math.floor(float(wildxp)*1.5)))
         elif gen == 5:
             wildxp = str(int(math.floor((1*monyield*enemylevel/5)*math.pow((2*enemylevel+10)/(enemylevel+monlevel+10),2.5))+1))
             a = 1.5
