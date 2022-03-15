@@ -43,7 +43,7 @@ def main():
     conn, token, user, readbuffer, server = connectionVariables()
     session = Session(engine)
     #subquery for all channelids in the ChannelDeletion table
-    deletedchannels = session.query(ChannelDeletion.channelid).all()
+    deletedchannels = session.query(ChannelDeletion.channelid)
     #retrieve a list of channels not in the ChannelDeletion table
     twitchusers = session.query(TwitchUser.twitchusername).select_from(Channel)\
         .join(TwitchUser)\
@@ -53,6 +53,7 @@ def main():
     #fetch the commands from the database
     commandDict = getCommands()
     #loop through channels and create a listening thread for each one
+    twitchusers = [('brdy',)]
     for channel in twitchusers:
         channel = channel[0]
         #retrieve all operants for the channel
@@ -345,7 +346,7 @@ def storeMessage(message,ccrid):
     return success
 
 def logException(commandrequestid, exception, channel):
-    channelid = getChannelID(channel)
+    channelid = getChannelID(channel)[0]
     if not commandrequestid:
         commandrequestid = None
     session = Session(engine)
@@ -382,7 +383,7 @@ def logCommand(commandid,channelname,operantname,parameters):
     commandname = session.query(Command.commandname).filter(Command.commandid == commandid).first()[0]
     if commandid == 9:
         success = addOperants([operantname],channelname)
-    channelid = getChannelID(channelname)
+    channelid = getChannelID(channelname)[0]
     operantid = session.query(Operant.operantid).filter(Operant.operantname == operantname).first()[0]
     print("\r\n________________________________________________________________________________________________________")
     print("Received the "+commandname+" command in channel "+channelname+" from user "+operantname+". Parameters: "+str(parameters)+"\r\n")

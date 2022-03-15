@@ -1,4 +1,4 @@
 @echo off
 :start
-"C:\Users\brdy7\Anaconda3\python.exe" "C:\Users\brdy7\Documents\Projects\pokemoncoverage\bot\brdybot.py"
+"C:\Program Files\Python37\python.exe" "C:\Users\Administrator\brdybot\brdybot.py"
 goto start
