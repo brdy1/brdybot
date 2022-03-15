@@ -238,7 +238,6 @@ class ChannelDeletion(Base):
     __tablename__ = 'channeldeletion'
     channelid = Column("channelid",Integer,ForeignKey("channel.channelid"),primary_key=True)
     deletiontime = Column('deletiontime',DateTime)
-    twitchuserid = Column('twitchuserid',Integer,ForeignKey("twitchuser.twitchuserid"))
 
 class ChannelError(Base):
     __tablename__ = 'channelerror'

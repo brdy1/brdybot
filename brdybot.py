@@ -9,6 +9,7 @@ import re
 #this imports the information schema, sqlalchemy, and more
 from app import *
 from schema import *
+import json
 #this is for connecting to IRC
 import socket
 #this is for connecting to the postgres database
@@ -42,11 +43,11 @@ def main():
     conn, token, user, readbuffer, server = connectionVariables()
     session = Session(engine)
     #subquery for all channelids in the ChannelDeletion table
-    deletedchannels = session.query(ChannelDeletion.twitchuserid).all()
+    deletedchannels = session.query(ChannelDeletion.channelid).all()
     #retrieve a list of channels not in the ChannelDeletion table
     twitchusers = session.query(TwitchUser.twitchusername).select_from(Channel)\
         .join(TwitchUser)\
-        .filter(TwitchUser.twitchuserid.notin_(deletedchannels))\
+        .filter(Channel.channelid.notin_(deletedchannels))\
         .order_by(TwitchUser.twitchusername).all()
     session.close()
     #fetch the commands from the database
@@ -460,51 +461,91 @@ def listOperants(channel):
             message += operant
     return message
 
+def getTwitchID(username):
+    file = 'chatbot.ini'
+    config.read(file)
+    idsecret = config['idfetch']['secret']
+    idclient = config['idfetch']['clientid']
+    authURL = 'https://id.twitch.tv/oauth2/token'
+    AutParams = {'client_id': idclient,
+             'client_secret': idsecret,
+             'grant_type': 'client_credentials'
+             }
+    AutCall = requests.post(url=authURL, params=AutParams)
+    print(AutCall)
+    access_token = AutCall.json()['access_token']
+    url = 'https://api.twitch.tv/helix/users?login='+username
+    headers = {
+        'Authorization':"Bearer " + access_token,
+        'Client-Id':idclient
+    }
+    response = requests.get(url,headers=headers)
+    response.json()['data'][0]['id']
+    userid = response.json()['data'][0]['id']
+    return userid
+
 def addClient(conn, token, botName, username, server):
     session = Session(engine)
-    operantid = session.query(Operant.operantid).filter(Operant.operantname == username).first()
-    channelid = session.query(Channel.channelid).filter(Channel.channelname == username).first()
-    if not channelid:
-        channelid = insert(Channel).values(channelname=username,gameid=10)
-        channelid = session.execute(channelid).inserted_primary_key[0]
-        session.commit()
-        session.close()
-    else:
-        channelid = channelid[0]
-    operantid = session.query(Operant.operantid).filter(Operant.operantname == username).first()
-    if not operantid:
-        operantid = insert(Operant).values(operantname=username)
-        operantid = session.execute(operantid).inserted_primary_key[0]
-        session.commit()
-        session.close()
-    else:
-        operantid = operantid[0]
-    channeloperantid = session.query(ChannelOperant.operanttypeid).filter(ChannelOperant.channelid == channelid, ChannelOperant.operantid == operantid).first()
-    if not channeloperantid:
-        channeloperantid = insert(ChannelOperant).values(channelid=channelid,operantid=operantid,operanttypeid=1)
-        channeloperantid = session.execute(channeloperantid).inserted_primary_key[0]
-        session.commit()
-        session.close()
-        message = username+""" - You have been successfully added to the channel list. Game has been set to FireRed. Use !pokegame in your channel to change the game. Note that I do store usernames and command usage records in the database for use in feature improvement. Your username will NEVER be shared. Use !brdybotleave in your channel to remove yourself from my channel list."""
-        operants = getOperants(username)
-        commandDict = getCommands()
-        threading.Thread(target=ircListen, args=(conn, token, botName, username, server, operants,commandDict)).start()
-        return message
-    else:
-        channeloperantid = channeloperantid[0]
-    channeldeletionid = session.query(ChannelDeletion.channelid).filter(ChannelDeletion.channelid == channelid).first()
-    if channeldeletionid:
-        session.query(ChannelDeletion.channelid).filter(ChannelDeletion.channelid == channelid).delete()
-        session.commit()
-        session.close()
-        message = username+""" - You have been successfully re-added to the channel list. Game has been set to FireRed. Use !pokegame in your channel to change the game. Note that I do store usernames and command usage records in the database for use in feature improvement. Your username will NEVER be shared. Use !brdybotleave in your channel to remove yourself from my channel list."""
-        operants = getOperants(username)
-        commandDict = getCommands()
-        threading.Thread(target=ircListen, args=(conn, token, botName, username, server, operants,commandDict)).start()
-        return message
-    else:
-        message = "You are already on the channel list. If the bot is not responding in your channel, please message brdy to correct the error."
-        return message
+    username = username.lower()
+    twitchid = getTwitchID(username)
+    try:
+        operantid = session.query(Operant.operantid).filter(Operant.operantname == username).first()
+    except:
+        operantid = None
+    try:
+        channelid, twitchuserid = session.query(Channel.channelid,TwitchUser.twitchuserid).\
+            join(Channel, Channel.twitchuserid == TwitchUser.twitchuserid).\
+            filter(TwitchUser.twitchusername == username).first()
+    except:
+        channelid, twitchuserid = None, None
+    finally:
+        if not twitchuserid:
+            twitchid = getTwitchID(username)
+            inserttwitchid = insert(TwitchUser).values(twitchusername=username,twitchuserid = twitchid)
+            inserttwitchid = session.execute(inserttwitchid).inserted_primary_key[0]
+            session.commit()
+            session.close()
+        if not channelid:
+            channelid = insert(Channel).values(channelname=username,gameid=10,twitchuserid=twitchid)
+            channelid = session.execute(channelid).inserted_primary_key[0]
+            session.commit()
+            session.close()
+        if not operantid:
+            operantid = insert(Operant).values(operantname=username,twitchuserid=twitchid)
+            operantid = session.execute(operantid).inserted_primary_key[0]
+            session.commit()
+            session.close()
+        else:
+            operantid = operantid[0]
+        try:
+            channeloperantid = session.query(ChannelOperant.operanttypeid).filter(ChannelOperant.channelid == channelid, ChannelOperant.operantid == operantid).first()
+        except:
+            channeloperantid = None
+        if not channeloperantid:
+            channeloperantid = insert(ChannelOperant).values(channelid=channelid,operantid=operantid,operanttypeid=1)
+            channeloperantid = session.execute(channeloperantid).inserted_primary_key[0]
+            session.commit()
+            session.close()
+            message = username+""" - You have been successfully added to the channel list. Game has been set to FireRed. Use !pokegame in your channel to change the game. Note that I do store usernames and command usage records in the database for use in feature improvement. Your username will NEVER be shared. Use !brdybotleave in your channel to remove yourself from my channel list."""
+            operants = getOperants(username)
+            commandDict = getCommands()
+            threading.Thread(target=ircListen, args=(conn, token, botName, username, server, operants,commandDict)).start()
+            return message
+        else:
+            channeloperantid = channeloperantid[0]
+        channeldeletionid = session.query(ChannelDeletion.channelid).filter(ChannelDeletion.channelid == channelid).first()
+        if channeldeletionid:
+            session.query(ChannelDeletion.channelid).filter(ChannelDeletion.channelid == channelid).delete()
+            session.commit()
+            session.close()
+            message = username+""" - You have been successfully re-added to the channel list. Game has been set to FireRed. Use !pokegame in your channel to change the game. Note that I do store usernames and command usage records in the database for use in feature improvement. Your username will NEVER be shared. Use !brdybotleave in your channel to remove yourself from my channel list."""
+            operants = getOperants(username)
+            commandDict = getCommands()
+            threading.Thread(target=ircListen, args=(conn, token, botName, username, server, operants,commandDict)).start()
+            return message
+        else:
+            message = "You are already on the channel list. If the bot is not responding in your channel, please message brdy to correct the error."
+            return message
 
 def removeClient(channel):
     session = Session(engine)
@@ -871,7 +912,7 @@ def getNatureInfo(parameters,channel):
     else:
         natureName = combineParameters(parameters)
         natureList  = performSQL("""WITH ldist as (SELECT raisedstat.statname raisedstat,loweredstat.statname loweredstat,
-                                                n.neutralnatureflag neutral,
+                                                n.neutralnatureflag neutral,n.naturename,
                                                 pokemon.levenshtein(n.naturename, '"""+natureName+"""') AS distance FROM pokemon.nature n
                                                 LEFT JOIN pokemon.stat raisedstat ON n.raisedstatid = raisedstat.statid
                                                 LEFT JOIN pokemon.stat loweredstat ON n.loweredstatid = loweredstat.statid)
@@ -880,11 +921,11 @@ def getNatureInfo(parameters,channel):
         if natureList == []:
             natureInfo = "Could not find info for "+natureName+"."
         else:
-            raisedStat,loweredStat,neutral,distance = natureList[0]
+            raisedStat,loweredStat,neutral,natureName,distance = natureList[0]
             if 'True' in str(neutral):
                 natureInfo  = natureName + " is a neutral nature."
             elif 'False' in str(neutral):
-                natureInfo  = "+"+str(raisedStat)+"/"+"-"+str(loweredStat)
+                natureInfo  = natureName+": +"+str(raisedStat)+"/"+"-"+str(loweredStat)
             else:
                 natureInfo = "Could not find info for "+natureName+"."
     return natureInfo
