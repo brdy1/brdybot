@@ -12,7 +12,7 @@ The bot has the following commands available:
 
 | Image 	|	 Command 	|	 Description 	|	 Type 	|	 Min Param 	|	 Max Param 	|
 | :--------------:	|	:---------:	|	:---------:	|	:---------:	|	:----:	|	:----:	|
-![image](screens/abbrevs.PNG)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |	abbrevs	|	Returns all available game abbreviations to the chat.	|	bot	|	0	|	0	|
+![image](screens/abbrevs.PNG)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |	abbrevs	|	Returns all available game abbreviations to the chat.	|	bot	|	0	|	0	|
 ![image](screens/ability.PNG)	|	ability	|	User sends an ability name as a parameter, and the bot returns information about it to the chat.	|	ability	|	1	|		|
 ![image](screens/botinfo.PNG)	|	botinfo	|	The bot returns basic information and links related to the bot.	|	bot	|	0	|	0	|
 --	|	brdybotleave	|	Make the bot leave your channel (channel owner only).	|	bot	|	0	|	0	|
