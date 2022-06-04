@@ -17,8 +17,8 @@ The bot has the following commands available:
 ![image](screens/botinfo.PNG)	|	botinfo	|	The bot returns basic information and links related to the bot.	|	bot	|	0	|	0	|
 --	|	brdybotleave	|	The channel owner must type this in their channel to make the bot leave their channel.	|	bot	|	0	|	0	|
 ![image](screens/bst.PNG)	|	bst	|	User sends the name of a Pokemon as a parameter, and the bot returns the base stat total for that Pokemon for the current generation.	|	pokemon	|	1	|		|
-![image](screens/coverage.PNG)	|	coverage	|	Takes one or more types as inputs, and outputs the number of Pokemon in the current game that fall into each maximum damage effectiveness bracket.	|	type	|	1	|		|
-![image](screens/coveragecomb.PNG)	|	coveragecomb	|	User sends a number between 2 and 4 (x) and a number of types at least 1 greater than x but no greater than 5. The bot will query the !coverage command for all the possible combinations of x types among the types given. Requires Mod or VIP priviliges to work effectively.	|	bot	|	3	|	6	|
+![image](screens/coverage.PNG)	|	coverage	|	Takes one or more types as inputs, and outputs the number of Pokemon in the current game that fall into each maximum damage effectiveness bracket.	|	types	|	1	|		|
+![image](screens/coveragecomb.PNG)	|	coveragecomb	|	User sends a number between 2 and 4 (x) and a number of types at least 1 greater than x but no greater than 5. The bot will query the !coverage command for all the possible combinations of x types among the types given. Requires Mod or VIP priviliges to work effectively.	|	types	|	3	|	6	|
 ![image](screens/evos.PNG)	|	evos	|	User sends the name of a pokemon as a parameter, and the bot returns all evolutions for that pokemon available in the currently selected game.	|	pokemon	|	1	|		|
 ![image](screens/gamelist.PNG)	|	gamelist	|	Lists the games available to be changed to with the !pokegame command.	|	bot	|	0	|	0	|
 ![image](screens/help.PNG)	|	help	|	User sends the name of a command, and the bot returns the description of a command to chat.	|	commandselect	|	0	|	0	|
