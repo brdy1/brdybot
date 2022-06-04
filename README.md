@@ -30,7 +30,7 @@ The bot has the following commands available:
 ![image](screens/mon.PNG)	|	mon	|	User sends a Pokemon name as a parameter, and the bot returns summary information about it to the chat.	|	pokemon	|	1	|		|
 ![image](screens/move.PNG)	|	move	|	User sends a move name as a parameter, and the bot returns information about it to the chat.	|	move	|	1	|		|
 ![image](screens/nature.PNG)	|	nature	|	User sends a nature name as a parameter, and the bot returns the affected attributes to the chat.	|	nature	|	1	|		|
-![image](screens/pokecom.PNG)	|	pokecom	|	The bot retrieves and returns all pokemon commands available.	|	commandselect	|	0	|	0	|
+![image](screens/pokecom.PNG)	|	pokecom	|	The bot retrieves and returns all pokemon commands available.	|	command	|	0	|	0	|
 ![image](screens/pokegame.PNG)	|	pokegame	|	User sends a game name or abbreviation as a parameter, and the bot changes the game for the channel.	|	game	|	1	|		|
 ![image](screens/pokeops.PNG)	|	pokeops	|	Send a list of usernames separated by a single space to add as bot operators in your channel. ex: !pokeops juicytoaster bayleef murkus iateyourpie	|	bot	|	1	|	20	|
 ![image](screens/removeops.PNG)	|	removeops	|	Takes one or more usernames and removes permissions for them in the channel.	|	bot	|	1	|		|
