@@ -65,7 +65,7 @@ The bot has the following commands available:
 
 - !pokecom: The bot retrieves and returns all pokemon commands available.
 
- ![image](screens/commands.PNG)
+ ![image](screens/pokecom.PNG)
 
 - !pokegame: User sends a game name or abbreviation as a parameter, and the bot changes the game for the channel.
 
