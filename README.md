@@ -15,14 +15,14 @@ The bot has the following commands available:
 ![image](screens/abbrevs.PNG)	|	abbrevs	|	Returns all available game names and their abbreviations to the chat.	|	bot	|	0	|	0	|
 ![image](screens/ability.PNG)	|	ability	|	User sends an ability name as a parameter, and the bot returns information about it to the chat.	|	ability	|	1	|		|
 ![image](screens/botinfo.PNG)	|	botinfo	|	The bot returns basic information and links related to the bot.	|	bot	|	0	|	0	|
-![image](screens/brdybotleave.PNG)	|	brdybotleave	|	The channel owner must type this in their channel to make the bot leave their channel.	|	bot	|	0	|	0	|
+--	|	brdybotleave	|	The channel owner must type this in their channel to make the bot leave their channel.	|	bot	|	0	|	0	|
 ![image](screens/bst.PNG)	|	bst	|	User sends the name of a Pokemon as a parameter, and the bot returns the base stat total for that Pokemon for the current generation.	|	pokemon	|	1	|		|
 ![image](screens/coverage.PNG)	|	coverage	|	Takes one or more types as inputs, and outputs the number of Pokemon in the current game that fall into each maximum damage effectiveness bracket.	|	type	|	1	|		|
 ![image](screens/coveragecomb.PNG)	|	coveragecomb	|	User sends a number between 2 and 4 (x) and a number of types at least 1 greater than x but no greater than 5. The bot will query the !coverage command for all the possible combinations of x types among the types given. Requires Mod or VIP priviliges to work effectively.	|	bot	|	3	|	6	|
 ![image](screens/evos.PNG)	|	evos	|	User sends the name of a pokemon as a parameter, and the bot returns all evolutions for that pokemon available in the currently selected game.	|	pokemon	|	1	|		|
 ![image](screens/gamelist.PNG)	|	gamelist	|	Lists the games available to be changed to with the !pokegame command.	|	bot	|	0	|	0	|
 ![image](screens/help.PNG)	|	help	|	User sends the name of a command, and the bot returns the description of a command to chat.	|	commandselect	|	0	|	0	|
-![image](screens/join.PNG)	|	join	|	Any user may type this in the bot's channel to have it join their channel.	|	bot	|	0	|	0	|
+--|	join	|	Any user may type this in the bot's channel to have it join their channel.	|	bot	|	0	|	0	|
 ![image](screens/learnset.PNG)	|	learnset	|	User sends the name of a Pokemon as a parameter, and the bot returns the levels at which that Pokemon learns moves in the current game.	|	pokemon	|	1	|		|
 ![image](screens/learnsetshort.PNG)	|	learnsetshort	|	User sends the name of a pokemon as a parameter, and the bot returns a list of levels at which it learns moves in the currently selected game.	|	pokemon	|	1	|		|
 ![image](screens/level.PNG)	|	level	|	User sends three (3) parameters - the name of a growth rate (either Erratic, Fast, Medium Fast, Medium Slow, Slow, Fluctuating), a starting level, and an ending level. The bot will return the total required experience to go from the starting level to the ending level.	|	levelingrate	|	3	|	3	|
