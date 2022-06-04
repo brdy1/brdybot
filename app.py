@@ -1,696 +1,841 @@
-from flask import Flask, jsonify
-from flask_restful import Resource, Api, reqparse, request
-from numpy.lib.type_check import typename
-from sqlalchemy import Column, Table, Integer, String, Boolean, DateTime, ForeignKey
-from sqlalchemy.sql import alias
-from sqlalchemy.ext.declarative import declarative_base, DeferredReflection
-from sqlalchemy.ext.automap import automap_base
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine, func, insert,update,delete
-from sqlalchemy.sql.schema import PrimaryKeyConstraint
+import math
+from flask import Flask
+from flask_restful import Api, request
+from sqlalchemy.orm import Session,aliased
+from sqlalchemy import create_engine, func, update, delete, and_, or_, null
+from sqlalchemy.dialects.postgresql import aggregate_order_by, insert
 from werkzeug.routing import BaseConverter
-from pprint import pprint
-from brdybot import *
 from schema import *
 import configparser
 import pandas as pd
-
-config = configparser.ConfigParser()
-file = "chatbot.ini"
-config.read(file)
-host = config['database']['host']
-database = config['database']['database']
-user = config['database']['user']
-password = config['database']['password']
-
-#################################################
-class TypeListConverter(BaseConverter):
-    """Match ints separated with ';'."""
-
-    # at least one int, separated by ;, with optional trailing ;
-    regex = r'\d+(?:;\d+)*;?'
-
-    # this is used to parse the url and pass the list to the view function
-    def to_python(self, value):
-        return [str(x) for x in value.split(';')]
-
-    # this is used when building a url with url_for
-    def to_url(self, value):
-        return ';'.join(str(x) for x in value)
+import requests
+import traceback
 
 
 #################################################
 # Flask Setup
 #################################################
 app = Flask(__name__)
-app.url_map.converters['type_list'] = TypeListConverter
 
 api = Api(app)
 
 #################################################
-# App Routes
+# App Routes ####################################
 #################################################
 
-@app.route("/")
+@app.route("/api/v2.0/")
 def welcome():
-    """List all available api routes."""
-    return (
-        f"Available Routes:<br/>"
-        f"/api/v1.0/pokemon<br/>"
-        f"/api/v1.0/ability<br/>"
-        f"/api/v1.0/move<br/>"
-        f"/api/v1.0/coverage"
-    )
-
-@app.route("/api/v1.0/pokemon")
-def pokemon():
-    monName = request.args.get("name")
-    if monName:
-        monName = monName.title().replace("'","''")
-    monID = request.args.get("id")
-    monDex = request.args.get("dex")
-    reqGeneration = request.args.get("gen")
-
-    # Create our session (link) from Python to the DB
     session = Session(engine)
-    """Return a list of all pokemon names"""
-    monsel = [ Pokemon.pokemonid,
-            Pokemon.pokemonname,
-            Pokemon.pokemonpokedexnumber,
-            Pokemon.pokemoncapturerate,
-            Pokemon.pokemonlegendaryflag,
-            Pokemon.pokemonmythicflag,
-            ]
-    # Query all pokemon
-    if monName:
-        pokemonNames =  session.query(*monsel).\
-                        order_by(func.levenshtein(Pokemon.pokemonname, monName),
-                        Pokemon.pokemonpokedexnumber,
-                        Pokemon.pokemonsuffix).first()
-    elif monDex:
-        pokemonNames =  session.query(*monsel).\
-                        filter(Pokemon.pokemonpokedexnumber == monDex).\
-                        order_by(Pokemon.pokemonpokedexnumber,
-                        Pokemon.pokemonsuffix).first()
-    elif monID:
-        pokemonNames = session.query(*monsel).\
-                        filter(Pokemon.pokemonid == monID).\
-                        order_by(Pokemon.pokemonpokedexnumber,
-                        Pokemon.pokemonsuffix).first()
-    pokemon = {}
-    monid,monName,dex,catchrate,legendary,mythic = pokemonNames
-    # Define a select statement for the stat query
-    statsel = [ Stat.statname,
-                    Stat.statid,
-                    PokemonStat.pokemonstatvalue,
-                    PokemonStat.generationid,
-                    ]
-    # Fetch the stats for the pokemon
-    stats = session.query(*statsel).\
-                        join(Stat,PokemonStat.statid == Stat.statid).\
-                        join(Pokemon,PokemonStat.pokemonid == Pokemon.pokemonid).\
-                        filter(PokemonStat.pokemonid == monid).all()
+    """List available API routes."""
+    commands = session.query(Command.commandname,CommandType.commandtypename).\
+        join(CommandType, CommandType.commandtypeid == Command.commandtypeid).\
+        order_by(Command.commandname).\
+        all()
+    commandlist = "Available Routes:<br/>"
+    session.close()
+    for command in commands:
+        commandlist =+ "/api/v2.0/"+command+"<br/>"
+    return commandlist
 
-    statGens = session.query(PokemonStat.generationid).filter(PokemonStat.pokemonid == monid).distinct(PokemonStat.generationid).all()
-    # Create a blank list to store the pokemon's stats for each generation
-    # Create a blank dictionary
-    monStats = {}
-    # For each set of stats in a record
-    for gen in statGens:
-        gen = int(gen[0])
-        # Create a blank dictionary for the gen
-        monStats[gen] = {}
-    # For each stat for a gen
-    for statname,statid,statvalue,statgen in stats:
-        # Assign it to the correct dict value
-        monStats[int(statgen)][statname] = statvalue
+################
+## Bot Routes ##
+################
+@app.route("/api/v2.0/abbrevs/")
+def getAbbrevs():
+    session = Session(engine)
+    message = "Available game abbreviations: "
+    try:
+        abbreviations = session.query(GameGroup.gamegroupabbreviation).join(Game).order_by(GameGroup.gamegrouporder).distinct().all()
+    except:
+        traceback.print_exc()
+    finally:
+        session.close()
+    for abbrev in abbreviations:
+        message+= abbrev[0]+", "
+    message = message[0:len(message)-2]
+    # print(message)
+    return {'message':message,'returnid':None}
 
-    # Define a select statement for the move query
-
-
-    gamegroups = session.query(GameGroup.gamegroupname).\
-                    join(PokemonMove,GameGroup.gamegroupid == PokemonMove.gamegroupid).\
-                        filter(PokemonMove.pokemonid == monid).distinct(GameGroup.gamegroupname).all()
-    ggList = {}
-    for gamegroup in gamegroups:
-        gamegroup=gamegroup[0]
-        ggList[gamegroup] = {}
-
-    movemethods = session.query(PokemonMove.pokemonmoveid,PokemonMoveMethod.pokemonmovemethodname,GameGroup.gamegroupname).\
-                    join(PokemonMoveMethod,PokemonMove.pokemonmovemethodid == PokemonMoveMethod.pokemonmovemethodid).\
-                    join(GameGroup,PokemonMove.gamegroupid == GameGroup.gamegroupid).\
-                        filter(PokemonMove.pokemonid == monid).distinct(GameGroup.gamegroupname,PokemonMoveMethod.pokemonmovemethodname).all()
-
-    for pokemonid,method,gamegroup in movemethods:
-        if method == 'Level up':
-            ggList[gamegroup][method] = {}
-
-    movesel = [ PokemonMove.pokemonmoveid,
-                PokemonMove.pokemonmovelevel,
-                Move.moveid,
-                Move.movename,
-                PokemonMoveMethod.pokemonmovemethodname,
-                GameGroup.gamegroupname
-                ]
-
-    moves = session.query(*movesel).\
-            join(Move,PokemonMove.moveid == Move.moveid).\
-            join(PokemonMoveMethod,PokemonMove.pokemonmovemethodid == PokemonMoveMethod.pokemonmovemethodid).\
-            join(GameGroup,PokemonMove.gamegroupid == GameGroup.gamegroupid).\
-                filter(PokemonMove.pokemonid == monid).all()
-
-    for monmoveid,movelevel,moveid,movename,movemethod,gamegroup in moves:
-        if movemethod == 'Level up':
-            ggList[gamegroup][movemethod][str(movelevel)] = movename
-        # elif movemethod == 'Tutor' or movemethod == 'Egg' or movemethod == 'Machine':
-        #     print(str(monmoveid)+" "+str(movelevel)+" "+str(moveid)+" "+str(movename)+" "+str(movemethod)+" "+str(gamegroup))
-        #     if movename not in ggList[gamegroup][method]:
-        #         ggList[gamegroup][method] = [movename]  # <-- Change this line
-        #     else:
-        #         ggList[gamegroup][method].append(movename)
-
-    # Define a select statement for the evolution query
-    evosel = [ PokemonEvolution.pokemonevolutionid,
-            PokemonEvolution.basepokemonid,
-            Pokemon.pokemonname,
-            Item.itemname,
-            PokemonEvolutionLevel.pokemonevolutionlevel,
-            Location.locationname,
-            Move.movename,
-            PokemonEvolutionString.pokemonevolutionstring,
-            PokemonEvolution.gamegroupid
-            ]
-
-    # Fetch the evolution information for the pokemon as base mon
-    evos = session.query(*evosel).\
-            join(PokemonEvolutionItem, isouter=True).\
-            join(Item,PokemonEvolutionItem.itemid == Item.itemid, isouter=True).\
-            join(PokemonEvolutionLevel, isouter=True).\
-            join(PokemonEvolutionLocation, isouter=True).\
-            join(Location,PokemonEvolutionLocation.locationid == Location.locationid, isouter=True).\
-            join(PokemonEvolutionMove, isouter=True).\
-            join(Move,PokemonEvolutionMove.moveid == Move.moveid, isouter=True).\
-            join(PokemonEvolutionString, isouter=True).\
-            join(Pokemon,PokemonEvolution.targetpokemonid == Pokemon.pokemonid).\
-                filter(PokemonEvolution.basepokemonid == monid).all()
-
-    evoList = {}
-    for evo in evos:
-        evoid,baseid,targetname,item,level,location,move,string,ggid = evo
-
-        monEvo = {
-            "item":item,
-            "level":level,
-            "location":location,
-            "move":move,
-            "string":string
-        }
-        
-        evoList[targetname] = monEvo
-    montypes = pd.read_sql("SELECT pt.generationid,t.typename FROM pokemon.pokemontype pt LEFT JOIN pokemon.type t ON pt.typeid = t.typeid WHERE pt.pokemonid = (SELECT pokemonid FROM pokemon.pokemon WHERE pokemonname = '"+monName.replace("'","''")+"')",engine)
-    typetable = pd.crosstab([montypes.generationid],montypes.typename)
-    typeDict = typetable.to_dict()
-    for key in typeDict.keys():
-        for gen in typeDict[key]:
-            print("Gen: "+str(gen))
-            print("Key: "+str(key))
-            print(typeDict[key][gen])
-            if typeDict[key][gen] == 0:
-                typeDict[key][gen] = False
-            else:
-                typeDict[key][gen] = True
-
-    monDict = {
-        "dex": dex,
-        "evolutions": evoList,
-        "catch rate": catchrate,
-        "legendary": legendary,
-        "mythic": mythic,
-        "stats": monStats,
-        "moves": ggList,
-        "types": typeDict
-    }
+@app.route("/api/v2.0/ability/<abilityname>")
+def getAbility(abilityname):
+    twitchuserid = int(request.args.get("twitchuserid"))
+    try:
+        session = Session(engine)
+        gen = session.query(GameGroup.generationid).join(Game).join(Channel).filter(Channel.twitchuserid==twitchuserid).first()[0]
+        abilityShtein = func.levenshtein(Ability.abilityname,abilityname).label("abilityShtein")
+        abilityname,abilitydescription,generation,abilityid = session.query(Ability.abilityname,GenerationAbility.abilitydescription,GenerationAbility.generationid,GenerationAbility.abilityid).\
+                                            select_from(GenerationAbility).\
+                                            join(Ability,GenerationAbility.abilityid == Ability.abilityid).\
+                                            filter(GenerationAbility.generationid <= gen).\
+                                            order_by(abilityShtein,GenerationAbility.generationid.desc()).first()
+    except:
+        traceback.print_exc()
+    finally:
+        session.close()
+    message = str(abilityname)+" (Gen "+str(gen)+"): "+str(abilitydescription)
+    # print(message)
+    return {'message':message,'returnid':abilityid}
     
-    pokemon[monID] = monDict
-    session.close()
-    return jsonify(pokemon)
+@app.route("/api/v2.0/botinfo/")
+def getBotInfo():
+    message = "To add me to your own channel, go to https://www.twitch.tv/popout/brdybot/chat and type !join. Discord: https:discord.gg/8vXVTth6FN . You can see my open source Python code here: https://github.com/brdy1/brdybot"
+    return {'message':message,'returnid':None}
 
-@app.route("/api/v1.0/move")
-def move():
-    moveName = request.args.get("name")
-    # Create our session (link) from Python to the DB
+@app.route("/api/v2.0/bst/<monname>")
+def getBST(monname):
+    try:
+        session = Session(engine)
+        twitchuserid = int(request.args.get("twitchuserid"))
+        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+        monid,monName,gamegroupname,gen = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupabbreviation,GameGroup.generationid).\
+                        select_from(PokemonGameAvailability).\
+                        join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                        join(Game,Channel.gameid == Game.gameid).\
+                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                        join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+                        join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                        filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                        order_by(monShtein).first()
+        generationnotused, bstAl = session.query(PokemonStat.generationid,func.sum(PokemonStat.pokemonstatvalue)).\
+                    filter(PokemonStat.pokemonid == monid,PokemonStat.generationid <= gen).\
+                    group_by(PokemonStat.generationid).\
+                    order_by(PokemonStat.generationid.desc()).\
+                        first()
+        message = monName+" (Gen "+str(gen)+") BST: "+str(bstAl)
+    finally:
+        session.close()
+    # print(message)
+    return {'message':message,'returnid':monid}
+    
+@app.route("/api/v2.0/coverage/<typelist>")
+def getCoverage(typelist,twitchuserid=None):
     session = Session(engine)
-    """Return a list of move data including the type, power, priority, pp, and contact information of each move"""
-    # Define a a list of columns for the select statement in the loop below
-    sel = [ Move.movename,
-            Type.typename,
-            GenerationMove.movepower,
-            GenerationMove.movepriority,
-            GenerationMove.moveaccuracy,
-            MoveCategory.movecategoryname,
-            GenerationMove.movepp,
-            GenerationMove.movedescription,
-            GenerationMove.movecontactflag,
-            GenerationMove.generationid
-            ]
-    # Query for all move names
-    names = session.query(Move.movename).order_by(func.levenshtein(Move.movename, moveName)).first()
-    name = names[0]
-    # Create a blank 'primary' move dictionary with a blank list of move names
-    moves = {}
-    moves[name] = {}
-    # Fetch the generationmove records
-    results = session.query(*sel).\
-                join(Move, GenerationMove.moveid==Move.moveid).\
-                join(Type, GenerationMove.typeid==Type.typeid).\
-                join(MoveCategory, GenerationMove.movecategoryid == MoveCategory.movecategoryid).\
-                filter(Move.movename == name).all()
-    for genName,type,power,priority,accuracy,category,pp,description,contact,generation in results:
-        genMove = {
-            "type": type,
-            "power": power,
-            "priority": priority,
-            "accuracy": accuracy,
-            "pp": pp,
-            "description": description,
-            "contact": contact,
-            "category": category
-        }
-        moves[name][generation] = genMove
-    session.close()
-    return jsonify(moves)
-
-@app.route("/api/v1.0/weakness")
-def weakness():
-    monID = request.args.get("id")
-    gen = request.args.get("gen")
-    channel = request.args.get("channel")
-    monTypes = """WITH montypes AS( SELECT pokemonid,type1id,type2id
-                FROM pokemon.crosstab('select pokemonid, typeid as type1id, typeid as type2id
-                FROM pokemon.pokemontype WHERE generationid = (SELECT MAX(generationid) FROM pokemon.pokemontype WHERE pokemonid = """+monID+""" AND generationid <= """+gen+""") AND pokemonid = """+monID+"""
-                GROUP BY pokemonid,type1id,type2id ORDER BY pokemonid,type1id,type2id')
-                AS ct( pokemonid int, type1id int, type2id int)), \r\n"""
-    damage1 = """damage1 as (
-                SELECT DISTINCT attacktype.typename attacker,SUM(coalesce(tm.damagemodifier::float,1)) as damage
-                FROM montypes
-                LEFT JOIN pokemon.typematchup tm ON montypes.type1id  = tm.defendingtypeid
-                LEFT JOIN pokemon.type attacktype ON tm.attackingtypeid = attacktype.typeid
-                WHERE tm.generationid = """+gen+"""
-                GROUP BY attacktype.typename),\r\n"""
-    damage2 = """damage2 as (
-                SELECT DISTINCT attacktype.typename attacker,SUM(coalesce(tm.damagemodifier::float,1)) as damage
-                FROM montypes
-                LEFT JOIN pokemon.typematchup tm ON montypes.type2id  = tm.defendingtypeid
-                LEFT JOIN pokemon.type attacktype ON tm.attackingtypeid = attacktype.typeid
-                WHERE tm.generationid = """+gen+"""
-                GROUP BY attacktype.typename) \r\n"""
-    mainSelect = """SELECT damage1.attacker attacktype,SUM(coalesce(damage1.damage,1) * coalesce(damage2.damage,1)) as totaldamage
-                FROM damage1 LEFT JOIN damage2 ON damage1.attacker = damage2.attacker
-                GROUP BY attacktype"""
-    matchupInfo = performSQL(monTypes+damage1+damage2+mainSelect)
-    printableDict = {4.0:[],2.0:[],1.0:[],.5:[],.25:[],0:[]}
-    for type,dmgmodifier in matchupInfo:
-        printableDict[dmgmodifier].append(type)
-    monTypes = getMonTypes(monID, channel)
-    return jsonify(printableDict)
-
-@app.route("/api/v1.0/coverage/<type_list:types>")
-def apiCoverage(types):
-    session = Session(engine)
-    typeIDs = []
-    typeNames = []
-    for coverageType in types:
-        types[types.index(coverageType)] = str(coverageType)
-    typeQuery = session.query(Type.typename,Type.typeid).filter(Type.typeid.in_(types)).all()
-    for typeArray in typeQuery:
-        typeIDs.append(typeArray[1])
-        typeNames.append(typeArray[0])
-    channel = request.args.get("channel")
-    gameID = str(getGameID(channel))
-    game = getGame(channel)
-    gen = getGeneration(channel)
-    monTypes = """WITH montypes as (
-                SELECT pokemonid,type1id,type2id
-	            FROM pokemon.crosstab('select pt.pokemonid, typeid as type1id, typeid as type2id
-                FROM pokemon.pokemontype pt
-                LEFT JOIN pokemon.pokemongameavailability pga ON pt.pokemonid = pga.pokemonid
-                LEFT JOIN pokemon.game gm ON pga.gameid = gm.gameid
-                WHERE pt.generationid ="""+gen+"""
-                AND gm.gameid = """+gameID+"""
-                AND pga.pokemonavailabilitytypeid != 18
-                GROUP BY pt.pokemonid,type1id,type2id ORDER BY pt.pokemonid,type1id,type2id')
-		        AS ct( pokemonid int, type1id int, type2id int)),"""
-    damage1 = """damage1 AS (\r\n"""
-    damage1 += """SELECT montypes.pokemonid,mon.pokemonname,"""
-    for typeName in typeNames:
-        damage1 += """CASE WHEN (montypes.pokemonid = 343 AND """+typeName+"""1.attackingtypeid NOT IN(2,10,13,14,16)) THEN 0 ELSE """
-        damage1 += typeName+"1.damagemodifier::float END as "+typeName+"damage"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage1 += ","
-        elif typeNames.index(typeName) == len(typeNames)-1:
-            damage1 += "\r\n"
-    damage1 += """ FROM montypes\r\n
-                        LEFT JOIN pokemon.pokemon mon ON montypes.pokemonid = mon.pokemonid \r\n"""
-    for typeName in typeNames:
-        damage1 += "LEFT JOIN pokemon.typematchup "+typeName+"1 ON montypes.type1id = "+typeName+"1.defendingtypeid\r\n"
-    damage1 += " WHERE "
-    for typeName in typeNames:
-        damage1 += typeName+"1.attackingtypeid = "+str(typeIDs[typeNames.index(typeName)])+"\r\n AND "
-        damage1 += typeName+"1.generationid = "+gen+" "
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage1 += "\r\n AND "
-    damage1 += "\r\nGROUP BY montypes.pokemonid,mon.pokemonname,"
-    for typeName in typeNames:
-        damage1 += typeName+"damage"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage1 += ","
-        elif typeNames.index(typeName) == len(typeNames)-1:
-            damage1 += "),\r\n "
-    damage2 = "damage2 as (SELECT montypes.pokemonid,mon.pokemonname,"""
-    for typeName in typeNames:
-        damage2 += """CASE WHEN (montypes.pokemonid = 343 AND """+typeName+"""2.attackingtypeid NOT IN(2,10,13,14,16)) THEN 0 ELSE """
-        damage2 += typeName+"2.damagemodifier::float END as "+typeName+"damage"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage2 += ","
-    damage2 += """\r\n FROM montypes\r\n
-                        LEFT JOIN pokemon.pokemon mon ON montypes.pokemonid = mon.pokemonid \r\n"""
-    for typeName in typeNames:
-        damage2 += "LEFT JOIN pokemon.typematchup "+typeName+"2 ON montypes.type2id = "+typeName+"2.defendingtypeid\r\n"
-    damage2 += " WHERE "
-    for typeName in typeNames:
-        damage2 += typeName+"2.attackingtypeid = "+str(typeIDs[typeNames.index(typeName)])+"\r\n AND "
-        damage2 += typeName+"2.generationid = "+gen+" "
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage2 += "\r\n AND "
-    damage2 += "\r\n GROUP BY montypes.pokemonid,mon.pokemonname,"
-    for typeName in typeNames:
-        damage2 += typeName+"damage"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage2 += ","
-        elif typeNames.index(typeName) == len(typeNames)-1:
-            damage2 += ") "
-    preSelect = "SELECT damage, count(*) FROM (\r\n"
-    mainSelect = "SELECT damage1.pokemonid, GREATEST("
-    for typeName in typeNames:
-        mainSelect += "SUM(coalesce(damage1."+typeName+"damage,1) * coalesce(damage2."+typeName+"damage,1))"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            mainSelect += ",\r\n "
-        elif typeNames.index(typeName) == len(typeNames)-1:
-            mainSelect += ") as damage FROM damage1 LEFT JOIN damage2 ON damage1.pokemonid = damage2.pokemonid "
-    mainGroup = "GROUP BY damage1.pokemonid "
-    postSelect = ") AS mondamage GROUP BY damage ORDER BY damage ASC\r\n"
-    selectString = monTypes+damage1+damage2+preSelect+mainSelect+mainGroup+postSelect
-    pokemonList = performSQL(selectString)
-    coverageString = "Types: "
-    for name in typeNames:
-        coverageString += name
-        if typeNames.index(name) < len(typeNames)-1:
-            coverageString += ", "
-    coverageString += " - "
-    pokemonString = "-- Obstacles: "
-    coverageString += " ("+game+"): "
-    for array in pokemonList:
-        coverageString += str(array[0]).replace(".0",".").replace("0.5",".5").replace("0.25",".25").replace("0.","0").replace("1.","1").replace("2.","2").replace("4.","4")+"x: "+str(array[1])
-        if pokemonList.index(array) < len(pokemonList)-1:
-            coverageString += " // "
-    if pokemonList[0][0] < .5 and pokemonList[1][0] < .5:
-        pokemonString = " -- Obstacles < 1x"
-        limit = pokemonList[0][1]+pokemonList[1][1]
-    elif pokemonList[0][0] < 1 and pokemonList[1][0] < 1:
-        pokemonString = " -- Obstacles < 1x"
-        limit = pokemonList[0][1]+pokemonList[1][1]
-    elif pokemonList [0][0] < 1 and pokemonList [1][0] == 1:
-        pokemonString = " -- Obstacles"
-        limit = pokemonList[0][1]
-    elif pokemonList[0][0] == 1:
-        pokemonString = " -- Top 5 1x Threats"
-        limit = 5
-    if pokemonList[2][0] < 1:
-        limit = limit+pokemonList[2][1]
-    if int(limit) > 12:
-        pokemonString += " (Limit 12): "
-        limit = 12
+    if not twitchuserid:
+        twitchuserid = int(request.args.get("twitchuserid"))
+    typelist = typelist.split(" ")
+    try:
+        gameid,generation,ggabbr = session.query(Game.gameid,GameGroup.generationid,GameGroup.gamegroupabbreviation).\
+            select_from(Channel).\
+            join(Game).\
+            join(GameGroup).\
+            filter(Channel.twitchuserid == twitchuserid).\
+            first()
+        for typename in typelist:
+            typeindex = typelist.index(typename)
+            typeShtein = func.levenshtein(Type.typename,typename)
+            typename = session.query(Type.typename).filter(Type.generationid <= generation).order_by(typeShtein).first()[0]
+            typelist[typeindex] = typename
+        validmons = session.query(Pokemon.pokemonid).\
+            select_from(PokemonGameAvailability).\
+            join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+            filter(PokemonGameAvailability.gameid == gameid,PokemonGameAvailability.pokemonavailabilitytypeid != 18)
+        dmgeffect = session.query(AttackingTypeEffectivenessByPokemon.pokemonid.label('monid'),AttackingTypeEffectivenessByPokemon.generation.label('gen'),func.max(AttackingTypeEffectivenessByPokemon.dmgmodifier).label('dmgmod')).\
+            select_from(AttackingTypeEffectivenessByPokemon).\
+            filter(AttackingTypeEffectivenessByPokemon.generation == generation,AttackingTypeEffectivenessByPokemon.attackingtypename.in_(typelist),AttackingTypeEffectivenessByPokemon.pokemonid.in_(validmons)).\
+            group_by(AttackingTypeEffectivenessByPokemon.pokemonid,AttackingTypeEffectivenessByPokemon.generation).\
+            subquery()
+        ps = session.query(PokemonStat.pokemonid,func.max(PokemonStat.generationid).label('maxgen')).\
+                filter(PokemonStat.generationid <= generation,PokemonStat.pokemonid.in_(validmons)).\
+                group_by(PokemonStat.pokemonid).\
+                subquery()
+        subdmg = session.query(dmgeffect.c.monid,Pokemon.pokemonname,dmgeffect.c.dmgmod,dmgeffect.c.gen).\
+            select_from(dmgeffect).\
+            join(Pokemon,dmgeffect.c.monid == Pokemon.pokemonid).\
+            order_by(dmgeffect.c.dmgmod.asc(),Pokemon.pokemonname)
+        dmgcounts = subdmg.subquery()
+        coveragecounts = session.query(dmgcounts.c.dmgmod,func.count(dmgcounts.c.monid)).\
+            group_by(dmgcounts.c.dmgmod).\
+            order_by(dmgcounts.c.dmgmod.asc()).\
+            all()
+        topbsts = session.query(dmgcounts.c.monid,dmgcounts.c.pokemonname,dmgcounts.c.dmgmod,func.sum(PokemonStat.pokemonstatvalue).label('bst')).\
+                    select_from(dmgcounts).\
+                    join(ps,dmgcounts.c.monid == ps.c.pokemonid).\
+                    join(PokemonStat,(ps.c.pokemonid == PokemonStat.pokemonid) & (ps.c.maxgen == PokemonStat.generationid)).\
+                    filter(dmgcounts.c.gen == generation).\
+                    group_by(dmgcounts.c.monid,dmgcounts.c.pokemonname,dmgcounts.c.dmgmod).\
+                    order_by(dmgcounts.c.dmgmod.asc(),func.sum(PokemonStat.pokemonstatvalue).desc(),dmgcounts.c.pokemonname).\
+                    all()
+    except:
+        session.rollback()
+        traceback.print_exc()
+    finally:
+        session.close()
+    message = "Types: "
+    for typename in typelist: 
+        message+=typename+", "
+    message=message[0:len(message)-2]+"  ("+ggabbr+") - "
+    for dmgbracket,count in coveragecounts:
+        message+="["+str(float(dmgbracket)).replace("0.25","¼").replace("0.5","½").replace("0.50","½").replace("0.0","0").replace(".0","")+"x: "+str(count)+"] "
+    message=message[0:len(message)-1]
+    mindmg,count = coveragecounts[0]
+    if mindmg < .5 and coveragecounts[1][0] < 1:
+        count += coveragecounts[1][1]
+    if float(mindmg) < 1:
+        message+= " -- Obstacles"
+        if count > 12:
+            message+= " (Limit 12)"
+        message+=": "
+        topbsts = topbsts[0:count if count < 12 else 12]
     else:
-        pokemonString += ": "
-    bstSelect = "SELECT damage1.pokemonid, mon.pokemonname, GREATEST("
-    for typeName in typeNames:
-        bstSelect += "SUM(coalesce(damage1."+typeName+"damage,1) * coalesce(damage2."+typeName+"damage,1))"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            bstSelect += ",\r\n "
-        elif typeNames.index(typeName) == len(typeNames)-1:
-            bstSelect += """) as damage\r\n
-                            FROM damage1\r\n
-                            LEFT JOIN damage2 ON damage1.pokemonid = damage2.pokemonid\r\n
-                            LEFT JOIN pokemon.pokemon mon ON damage1.pokemonid = mon.pokemonid\r\n"""
-    monBST = """, monBST as (\r\n
-                SELECT mon.pokemonid monid,\r\n
-                    mon.pokemonname as monname,\r\n
-                    ps.generationid gen,\r\n
-                    sum(ps.pokemonstatvalue) as bst\r\n
-                FROM pokemon.pokemonstat ps\r\n
-                LEFT JOIN pokemon.pokemon mon ON ps.pokemonid = mon.pokemonid\r\n
-                WHERE ps.generationid <= """+gen+"""GROUP BY monid,monname,gen ORDER BY gen DESC, monid, monname) \r\n"""
-    preWith = "WITH monDamageQuery as (\r\n"
-    postWith = ")"
-    bstGroup = " GROUP BY damage1.pokemonid,mon.pokemonname \r\n"
-    bstOrder = " ORDER BY damage ASC\r\n"""
-    realSelect = """SELECT damage, bst, monDamageQuery.pokemonname, monBST.gen FROM monDamageQuery
-                    LEFT JOIN monBST ON monDamageQuery.pokemonid = monBST.monid
-                    GROUP BY damage, bst, monDamageQuery.pokemonname, monBST.gen
-                    ORDER BY damage ASC, bst DESC, monDamageQuery.pokemonname, monBST.gen"""
-    coverageQuery = monTypes+damage1+damage2+bstSelect+bstGroup+bstOrder
-    sql = preWith+coverageQuery+postWith+monBST+realSelect
-    pokemonBSTList = []
-    pokemonIDs = performSQL(sql)
-    if len(pokemonIDs) == 0:
-        pokemonString += "None"
-    for obstacle in pokemonIDs:
-        if len(pokemonBSTList) < int(limit):
-            obstacleName = obstacle[2]
-            if not obstacleName in pokemonBSTList:
-                pokemonBSTList.append(obstacleName)
-                pokemonString += obstacleName+", "
-    pokemonString = pokemonString[0:len(pokemonString)-2]
-    coverageString += pokemonString
-    coverageString = coverageString.replace(" Form)",")")
-    return coverageString
+        message+= " -- Top 5 Threats: "
+        topbsts = topbsts[0:5]
+    for monid,monname,maxdmg,bst in topbsts:
+        message+= monname+"("+str(bst)+"), "
+    message=message[0:len(message)-2]
+    print(message)
+    return {'message':message,'returnid':None}
 
-@app.route("/api/v1.0/coverage2/<type_list:types>")
-def coverage(types):
+@app.route("/api/v2.0/coveragecomb/<parameters>")
+def coverageCombinations(parameters):
+    from itertools import combinations
+    twitchuserid = int(request.args.get("twitchuserid"))
+    parameters = parameters.split(" ")
+    movenumber = int(parameters[0])
+    types = parameters[1:]
+    typelists = list(combinations(types,movenumber))
+    message = ""
+    for typelist in typelists:
+        coverage = getCoverage(' '.join(typelist),twitchuserid)['message']
+        message += coverage+' // '
+    return {'message':message,'returnid':None}
+
+@app.route("/api/v2.0/evos/<monname>")
+def getEvos(monname,one=False):
     session = Session(engine)
-    typeIDs = []
-    typeNames = []
-    for coverageType in types:
-        types[types.index(coverageType)] = str(coverageType)
-    typeQuery = session.query(Type.typename,Type.typeid).filter(Type.typeid.in_(types)).all()
-    for typeArray in typeQuery:
-        typeIDs.append(typeArray[1])
-        typeNames.append(typeArray[0])
-    channel = request.args.get("channel")
-    gameID = str(getGameID(channel))
-    game = getGame(channel)
-    gen = getGeneration(channel)
-    montypes = pd.read_sql("SELECT pokemontype.generationid,typename FROM pokemon.pokemontype LEFT JOIN pokemon.pokemon ON pokemontype.pokemonid = pokemon.pokemonid LEFT JOIN pokemon.type ON pokemontype.typeid = type.typeid WHERE pokemon.pokemonname = '"+monName+"'",engine)
-    montypes = pd.crosstab([montypes.generationid],montypes.typename)
-    damage1 = """damage1 AS (\r\n"""
-    damage1 += """SELECT montypes.pokemonid,mon.pokemonname,"""
-    for typeName in typeNames:
-        damage1 += """CASE WHEN (montypes.pokemonid = 343 AND """+typeName+"""1.attackingtypeid NOT IN(2,10,13,14,16)) THEN 0 ELSE """
-        damage1 += typeName+"1.damagemodifier::float END as "+typeName+"damage"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage1 += ","
-        elif typeNames.index(typeName) == len(typeNames)-1:
-            damage1 += "\r\n"
-    damage1 += """ FROM montypes\r\n
-                        LEFT JOIN pokemon.pokemon mon ON montypes.pokemonid = mon.pokemonid \r\n"""
-    for typeName in typeNames:
-        damage1 += "LEFT JOIN pokemon.typematchup "+typeName+"1 ON montypes.type1id = "+typeName+"1.defendingtypeid\r\n"
-    damage1 += " WHERE "
-    for typeName in typeNames:
-        damage1 += typeName+"1.attackingtypeid = "+str(typeIDs[typeNames.index(typeName)])+"\r\n AND "
-        damage1 += typeName+"1.generationid = "+gen+" "
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage1 += "\r\n AND "
-    damage1 += "\r\nGROUP BY montypes.pokemonid,mon.pokemonname,"
-    for typeName in typeNames:
-        damage1 += typeName+"damage"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage1 += ","
-        elif typeNames.index(typeName) == len(typeNames)-1:
-            damage1 += "),\r\n "
-    damage2 = "damage2 as (SELECT montypes.pokemonid,mon.pokemonname,"""
-    for typeName in typeNames:
-        damage2 += """CASE WHEN (montypes.pokemonid = 343 AND """+typeName+"""2.attackingtypeid NOT IN(2,10,13,14,16)) THEN 0 ELSE """
-        damage2 += typeName+"2.damagemodifier::float END as "+typeName+"damage"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage2 += ","
-    damage2 += """\r\n FROM montypes\r\n
-                        LEFT JOIN pokemon.pokemon mon ON montypes.pokemonid = mon.pokemonid \r\n"""
-    for typeName in typeNames:
-        damage2 += "LEFT JOIN pokemon.typematchup "+typeName+"2 ON montypes.type2id = "+typeName+"2.defendingtypeid\r\n"
-    damage2 += " WHERE "
-    for typeName in typeNames:
-        damage2 += typeName+"2.attackingtypeid = "+str(typeIDs[typeNames.index(typeName)])+"\r\n AND "
-        damage2 += typeName+"2.generationid = "+gen+" "
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage2 += "\r\n AND "
-    damage2 += "\r\n GROUP BY montypes.pokemonid,mon.pokemonname,"
-    for typeName in typeNames:
-        damage2 += typeName+"damage"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            damage2 += ","
-        elif typeNames.index(typeName) == len(typeNames)-1:
-            damage2 += ") "
-    preSelect = "SELECT damage, count(*) FROM (\r\n"
-    mainSelect = "SELECT damage1.pokemonid, GREATEST("
-    for typeName in typeNames:
-        mainSelect += "SUM(coalesce(damage1."+typeName+"damage,1) * coalesce(damage2."+typeName+"damage,1))"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            mainSelect += ",\r\n "
-        elif typeNames.index(typeName) == len(typeNames)-1:
-            mainSelect += ") as damage FROM damage1 LEFT JOIN damage2 ON damage1.pokemonid = damage2.pokemonid "
-    mainGroup = "GROUP BY damage1.pokemonid "
-    postSelect = ") AS mondamage GROUP BY damage ORDER BY damage ASC\r\n"
-    selectString = monTypes+damage1+damage2+preSelect+mainSelect+mainGroup+postSelect
-    pokemonList = performSQL(selectString)
-    coverageString = "Types: "
-    for name in typeNames:
-        coverageString += name
-        if typeNames.index(name) < len(typeNames)-1:
-            coverageString += ", "
-    coverageString += " - "
-    pokemonString = "-- Obstacles: "
-    coverageString += " ("+game+"): "
-    for array in pokemonList:
-        coverageString += str(array[0]).replace(".0",".").replace("0.5",".5").replace("0.25",".25").replace("0.","0").replace("1.","1").replace("2.","2").replace("4.","4")+"x: "+str(array[1])
-        if pokemonList.index(array) < len(pokemonList)-1:
-            coverageString += " // "
-    if pokemonList[0][0] < .5 and pokemonList[1][0] < .5:
-        pokemonString = " -- Obstacles < 1x"
-        limit = pokemonList[0][1]+pokemonList[1][1]
-    elif pokemonList[0][0] < 1 and pokemonList[1][0] < 1:
-        pokemonString = " -- Obstacles < 1x"
-        limit = pokemonList[0][1]+pokemonList[1][1]
-    elif pokemonList [0][0] < 1 and pokemonList [1][0] == 1:
-        pokemonString = " -- Obstacles"
-        limit = pokemonList[0][1]
-    elif pokemonList[0][0] == 1:
-        pokemonString = " -- Top 5 1x Threats"
-        limit = 5
-    if int(limit) > 12:
-        pokemonString += " (Limit 12): "
-        limit = 12
+    twitchuserid = int(request.args.get("twitchuserid"))
+    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+    monid,monName,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupabbreviation,GameGroup.generationid).\
+                        select_from(PokemonGameAvailability).\
+                        join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                        join(Game,Channel.gameid == Game.gameid).\
+                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                        join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+                        join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                        filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                        order_by(monShtein).first()
+    print(str(monid)+" "+str(monName)+" "+str(gamegroupname)+" "+str(generation))
+    evosel = [Pokemon.pokemonname
+                ,GameGroup.gamegroupname
+                ,PokemonEvolutionInfo.evolutiontypeid
+                ,Item.itemname
+                ,PokemonEvolutionInfo.pokemonevolutionlevel
+                ,Location.locationname
+                ,Move.movename
+                ,PokemonEvolutionInfo.pokemonevolutionstring
+                ]
+    preevo = session.query(*evosel).select_from(PokemonEvolutionInfo).\
+                            join(Pokemon,PokemonEvolutionInfo.targetpokemonid == Pokemon.pokemonid).\
+                            join(GameGroup,PokemonEvolutionInfo.gamegroupid == GameGroup.gamegroupid).\
+                            join(PokemonEvolutionItem,PokemonEvolutionInfo.pokemonevolutionid == PokemonEvolutionItem.pokemonevolutionid,isouter=True).\
+                            join(Item,PokemonEvolutionInfo.itemid == Item.itemid,isouter=True).\
+                            join(Location,PokemonEvolutionInfo.locationid == Location.locationid,isouter=True).\
+                            join(Move,PokemonEvolutionInfo.moveid == Move.moveid,isouter=True).\
+                            filter(PokemonEvolutionInfo.basepokemonid == monid,GameGroup.generationid <= generation).order_by(GameGroup.gamegrouporder,PokemonEvolutionInfo.evolutiontypeid)
+    session.close()
+    if one:
+        pokemonEvolutions = [preevo.first()]
     else:
-        pokemonString += ": "
-    bstSelect = "SELECT damage1.pokemonid, mon.pokemonname, GREATEST("
-    for typeName in typeNames:
-        bstSelect += "SUM(coalesce(damage1."+typeName+"damage,1) * coalesce(damage2."+typeName+"damage,1))"
-        if typeNames.index(typeName) < len(typeNames)-1:
-            bstSelect += ",\r\n "
-        elif typeNames.index(typeName) == len(typeNames)-1:
-            bstSelect += """) as damage\r\n
-                            FROM damage1\r\n
-                            LEFT JOIN damage2 ON damage1.pokemonid = damage2.pokemonid\r\n
-                            LEFT JOIN pokemon.pokemon mon ON damage1.pokemonid = mon.pokemonid\r\n"""
-    monBST = """, monBST as (\r\n
-                SELECT mon.pokemonid monid,\r\n
-                    mon.pokemonname as monname,\r\n
-                    ps.generationid gen,\r\n
-                    sum(ps.pokemonstatvalue) as bst\r\n
-                FROM pokemon.pokemonstat ps\r\n
-                LEFT JOIN pokemon.pokemon mon ON ps.pokemonid = mon.pokemonid\r\n
-                WHERE ps.generationid <= """+gen+"""GROUP BY monid,monname,gen ORDER BY gen DESC, monid, monname) \r\n"""
-    preWith = "WITH monDamageQuery as (\r\n"
-    postWith = ")"
-    bstGroup = " GROUP BY damage1.pokemonid,mon.pokemonname \r\n"
-    bstOrder = " ORDER BY damage ASC\r\n"""
-    realSelect = """SELECT damage, bst, monDamageQuery.pokemonname, monBST.gen FROM monDamageQuery
-                    LEFT JOIN monBST ON monDamageQuery.pokemonid = monBST.monid
-                    GROUP BY damage, bst, monDamageQuery.pokemonname, monBST.gen
-                    ORDER BY damage ASC, bst DESC, monDamageQuery.pokemonname, monBST.gen"""
-    coverageQuery = monTypes+damage1+damage2+bstSelect+bstGroup+bstOrder
-    sql = preWith+coverageQuery+postWith+monBST+realSelect
-    pokemonBSTList = []
-    pokemonIDs = performSQL(sql)
-    if len(pokemonIDs) == 0:
-        pokemonString += "None"
-    for obstacle in pokemonIDs:
-        if len(pokemonBSTList) < int(limit):
-            obstacleName = obstacle[2]
-            if not obstacleName in pokemonBSTList:
-                pokemonBSTList.append(obstacleName)
-                pokemonString += obstacleName+", "
-    pokemonString = pokemonString[0:len(pokemonString)-2]
-    coverageString += pokemonString
-    coverageString = coverageString.replace(" Form)",")")
-    return coverageString
+        pokemonEvolutions = preevo.all()
+    evoList = monName
+    if not pokemonEvolutions or pokemonEvolutions == [None]:
+        evoList += " ("+gamegroupname+"): Does not evolve"
+        message = evoList
+    else:
+        evoList+=" evolutions ("+gamegroupname+"): "
+        for evoArray in pokemonEvolutions:
+            evoMon = str(evoArray[0])
+            evoLevel = str(evoArray[4])
+            evoItem = str(evoArray[3])
+            evoLocation = str(evoArray[5])
+            evoType = evoArray[2]
+            evoUnique = str(evoArray[7])
+            evoMove = str(evoArray[6])
+            evoInfo = "Evolves into " + evoMon
+            if evoType == 2 or evoType == 11:
+                evoInfo += " via trade"
+            elif evoType == 3:
+                evoInfo += " via high friendship"
+            elif evoType == 12:
+                evoInfo += " as a female"
+            elif evoType == 13:
+                evoInfo += " as a male"
+            elif evoType == 16:
+                evoInfo += " during the day"
+            elif evoType == 17:
+                evoInfo += " at night"
+            elif evoType == 20:
+                evoInfo += " in the rain"
+            elif evoType == 21:
+                evoInfo += " via high beauty"
+            if not evoLevel == 'None':
+                evoInfo += " at level "+evoLevel
+            if not evoItem == 'None':
+                if evoType == 10 or evoType == 11 or evoType == 17:
+                    evoInfo += " while holding " + evoItem
+                else:
+                    evoInfo += " after being exposed to " + evoItem
+            if not evoLocation == 'None':
+                evoInfo += " at " + evoLocation
+            if not evoMove == 'None':
+                evoInfo += " while knowing " + evoMove
+            if not evoUnique == 'None':
+                evoInfo += " " + evoUnique
+            evoList += evoInfo.strip()+" | "
+        message = evoList[0:len(evoList)-3]
+    # print(message)
+    return {'message':message,'returnid':monid}
 
-# @app.route("/api/v1.0/bst")
-# def move():
-#     monID = request.args.get("id")
-#     gen = request.args.get("gen")
-#     session = Session(engine)
-#     bstAl = session.query(func.sum(PokemonStat.pokemonstatvalue)).\
-#                 filter(PokemonStat.pokemonid == monID,PokemonStat.generationid <= gen).\
-#                 group_by(PokemonStat.generationid).\
-#                 order_by(PokemonStat.generationid.desc()).\
-#                     first()
-#     monBST = str(bstAl[0])
-#     return monBST
+@app.route("/api/v2.0/gamelist/")
+def getGameList():
+    session = Session(engine)
+    gamelist = session.query(Game.gamename).join(GameGroup).order_by(GameGroup.gamegrouporder).all()
+    session.close()
+    message = "Available games: "
+    for game in gamelist:
+        message+= game[0]+", "
+    message = message[0:len(message)-2]+". Use !pokegame <gamename> to change the game."
+    # print(message)
+    return {'message':message,'returnid':None}
+    
+@app.route("/api/v2.0/help/<commandname>")
+def describeCommand(commandname):
+    session = Session(engine)
+    commandShtein = func.least(func.levenshtein(Command.commandname,commandname),func.levenshtein(Command.commandname,commandname)).label("commandShtein")
+    commandsel = [  Command.commandname
+                    ,Command.commanddescription
+                    ,Command.commandminimumparameters
+                    ,Command.commandmaximumparameters
+                    ,CommandType.commandtypename
+                    ,Command.commandid
+                    ]
+    try:
+        commandname,commanddescription,minparams,maxparams,commandtype,commandid = session.query(*commandsel).\
+            join(CommandType,Command.commandtypeid == CommandType.commandtypeid,isouter=True).\
+            filter(Command.commandname == commandname,commandname != 'join').\
+            order_by(commandShtein).\
+            first()
+    except:
+        session.rollback()
+        traceback.print_exc()
+    finally:
+        session.close()
+    message = "Command !"+commandname+": "+commanddescription
+    if commandtype is not None:
+        message += " Return type: "+commandtype+"."
+    if minparams is not None or maxparams is not None:
+        message += " Parameters:"
+    if minparams is not None:
+        message+=" min "+str(minparams).lower()
+    if maxparams is not None:
+        message+=" max "+str(maxparams).lower()
+    return {'message':message,'returnid':commandid}
+    
+@app.route("/api/v2.0/learnset/<monname>")
+def getLearnset(monname,namesFlag=True,twitchuserid=None):
+    session = Session(engine)
+    if not twitchuserid:
+        twitchuserid = int(request.args.get("twitchuserid"))
+    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+    monid,monName,gamegroup,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.generationid).\
+                        select_from(PokemonGameAvailability).\
+                        join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                        join(Game,Channel.gameid == Game.gameid).\
+                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                        join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+                        join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                        filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                        order_by(monShtein).first()
+    pokemonMoves = session.query(Pokemon.pokemonname,GameGroup.gamegroupabbreviation,Move.movename,PokemonMove.pokemonmovelevel).\
+                                        select_from(PokemonMove).\
+                                        join(Pokemon).\
+                                        join(Move).\
+                                        join(GameGroup).\
+                                        filter(Pokemon.pokemonid == monid,PokemonMove.pokemonmovelevel > 1,PokemonMove.gamegroupid == gamegroup).\
+                                        order_by(PokemonMove.pokemonmovelevel).distinct().all()
+    print(str(monid)+" "+str(monName)+" "+str(gamegroup)+" "+str(generation))
+    print(pokemonMoves)
+    session.close()
+    message = monName
+    if len(pokemonMoves) > 0:
+        if namesFlag:
+            message += " learnset ("+pokemonMoves[0][1]+"): "    
+        else:
+            message += ": Learns moves at "
+        for pokemonMove in pokemonMoves:
+            pokemonname,gamegroupname,movename,movelevel = pokemonMove
+            if namesFlag == True:
+                message += movename+" ("+str(movelevel)+"), "
+            elif namesFlag == False:
+                message += str(movelevel)+", "
+        message = message[0:len(message)-2]
+    else:
+        message+= ": Does not learn moves."
+    # print(message)
+    return {'message':message,'returnid':monid}
 
-# @app.route("/api/v1.0/xp")
-# def xp():
-#     monID = request.args.get("id")
-#     gen = request.args.get("gen")
-#     enemylevel = request.args.get("enemylevel")
-#     monlevel = request.args.get("monlevel")
+@app.route("/api/v2.0/learnsetshort/<monname>")
+def getLearnsetShort(monname):
+    twitchuserid = int(request.args.get("twitchuserid"))
+    message = getLearnset(monname,namesFlag=False,twitchuserid=twitchuserid)
+    # print(message)
+    return message
+    
+@app.route("/api/v2.0/level/<parameters>")
+def getLevelRequirements(parameters):
+    session = Session(engine)
+    growth,startlvl,endlvl = parameters.lower().replace('-',' ').replace('m s','m-s').replace('m f','m-f').split(" ")
+    startlvl = int(startlvl)
+    endlvl = int(endlvl)
+    print(growth)
+    print(startlvl)
+    print(endlvl)
+    growthShtein = func.levenshtein(LevelingRate.levelingratename,growth).label("growthShtein")
+    rateid,rate = session.query(LevelingRate.levelingrateid,LevelingRate.levelingratename).order_by(growthShtein).first()
+    lvlSel = [LevelingRateLevelThreshold.levelingratelevelthresholdlevel
+                ,LevelingRateLevelThreshold.levelingratelevelthresholdexperience
+                ]
+    startlvl,startxp = session.query(*lvlSel).\
+        filter(LevelingRateLevelThreshold.levelingratelevelthresholdlevel == startlvl,LevelingRateLevelThreshold.levelingrateid == rateid).first()
+    endlvl,endxp = session.query(*lvlSel).\
+        filter(LevelingRateLevelThreshold.levelingratelevelthresholdlevel == endlvl,LevelingRateLevelThreshold.levelingrateid == rateid).first()
+    session.close()
+    message = rate+": Level "+str(startlvl)+"-"+str(endlvl)+" = "+str(int(float(endxp)-float(startxp)))+" xp."
+    return {'message':message,'returnid':None}
 
-#     enemylevel = float(enemylevel)
-#     if monlevel == None:
-#         monlevel = enemylevel
-#     monlevel = float(monlevel)
-#     gen = int(getGeneration(channel))
-#     session = Session(engine)
-#     try:
-#         xpyieldAl = session.query(PokemonExperienceYield.experienceyieldvalue,PokemonExperienceYield.generationid).\
-#                         filter(PokemonExperienceYield.pokemonid == int(monID), PokemonExperienceYield.generationid <= gen).\
-#                         order_by(PokemonExperienceYield.generationid.desc()).\
-#                             first()
-#         print(xpyieldAl)
-#         session.close()
-#         monyield = float(xpyieldAl[0])
-#         a = 1
-#         b = monyield
-#         L = enemylevel
-#         L2 = monlevel
-#         s = 1
-#         if gen != 5 and gen != 7:
-#             wildxp = str(int(math.floor(b*a*L/7)))
-#             a = 1.5
-#             trainerxp = str(int(math.floor(b*a*L/7)))
-#         elif gen == 5:
-#             wildxp = str(int(math.floor((1*monyield*enemylevel/5)*math.pow((2*enemylevel+10)/(enemylevel+monlevel+10),2.5))+1))
-#             a = 1.5
-#             trainerxp = str(int(math.floor((1.5*monyield*enemylevel/5)*math.pow((2*enemylevel+10)/(enemylevel+monlevel+10),2.5))+1))
-#         elif gen == 7:
-#             monEvo = getMonEvoArray(monID,channel)
-#             try:
-#                 evoLevel = monEvo[0][1]
-#             except:
-#                 evoLevel = L2+1
-#             if int(L2) >= int(evoLevel):
-#                 v = 1.2
-#             else:
-#                 v = 1
-#             wildxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
-#             trainerxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
-#         return wildxp,trainerxp
-#     except:
-#         traceback.print_exc()
-#         string='unknown'
-#         return string,string
+@app.route("/api/v2.0/listops/")
+def listOps():
+    session = Session(engine)
+    twitchuserid = int(request.args.get("twitchuserid"))
+    operants = session.query(TwitchUser.twitchusername).\
+            select_from(ChannelOperant).\
+            join(TwitchUser,ChannelOperant.operanttwitchuserid == TwitchUser.twitchuserid).\
+            filter(ChannelOperant.channeltwitchuserid == twitchuserid).all()
+    session.close()
+    message = "Users with permissions: "
+    for user in operants:
+        message+= user[0]+", "
+    message = message[0:len(message)-2]
+    # print(message)
+    return {'message':message,'returnid':None}
 
+@app.route("/api/v2.0/mon/<monname>")
+def getMon(monname):
+    session = Session(engine)
+    twitchuserid = int(request.args.get("twitchuserid"))
+    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+    monid,monName,gamegroup,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupname,GameGroup.generationid).\
+                        select_from(PokemonGameAvailability).\
+                        join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                        join(Game,Channel.gameid == Game.gameid).\
+                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                        join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+                        join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                        filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                        order_by(monShtein).first()
+    Type1 = aliased(Type)
+    Type2 = aliased(Type)
+    monsel = [Pokemon.pokemonpokedexnumber,
+                Pokemon.pokemonname,
+                Pokemon.pokemoncapturerate,
+                LevelingRate.levelingratename
+            ]                
+    dex,name,capture,leveling = session.query(*monsel).\
+                            select_from(Pokemon).\
+                            join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                            join(LevelingRate,Pokemon.levelingrateid == LevelingRate.levelingrateid).\
+                            filter(Pokemon.pokemonid == monid).\
+                            first()
+    session.close()
+    moveLevels = getLearnset(monName,namesFlag=False,twitchuserid=twitchuserid)
+    evo = getEvos(monName,one=True)
+    bst = getBST(monName)['message'].split(':')[1]
+    typestring = getTypes(name)['message'].split(':')[1]
+    message = "#"+str(dex).strip()+" "+name.strip()+" ("+gamegroupname.strip()+") | "+typestring.strip()+" | BST: "+str(bst).strip()+" | "+evo['message'].split(':')[1].strip()+" | "+str(leveling).strip()+" | "+moveLevels['message'].split(":")[1].strip()
+    # print(message)
+    return {'message':message,'returnid':monid}
+    
+@app.route("/api/v2.0/move/<movename>")
+def getMove(movename):
+    session = Session(engine)
+    twitchuserid = int(request.args.get("twitchuserid"))
+    gamegroupname,generation = session.query(GameGroup.gamegroupname,GameGroup.generationid).\
+                        select_from(Channel).\
+                        join(Game,Channel.gameid == Game.gameid).\
+                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                        filter(Channel.twitchuserid == twitchuserid).\
+                        first()
+    print(gamegroupname)
+    print(generation)
+    movesel = [Move.movename
+                ,GenerationMove.generationid
+                ,Type.typename
+                ,MoveCategory.movecategoryname
+                ,GenerationMove.movecontactflag
+                ,GenerationMove.movepp
+                ,GenerationMove.movepower
+                ,GenerationMove.moveaccuracy
+                ,GenerationMove.movepriority
+                ,GenerationMove.movedescription
+                ,Move.moveid]
+    moveShtein = func.least(func.levenshtein(Move.movename,movename),func.levenshtein(MoveNickname.movenickname,movename)).label("moveShtein")
+    movename,gen,movetype,category,contactflag,pp,power,acc,priority,description,moveid = session.query(*movesel).select_from(GenerationMove).\
+                                                                                join(Move,GenerationMove.moveid == Move.moveid).\
+                                                                                join(MoveNickname,Move.moveid == MoveNickname.moveid,isouter=True).\
+                                                                                join(MoveCategory,GenerationMove.movecategoryid == MoveCategory.movecategoryid).\
+                                                                                join(Type,GenerationMove.typeid == Type.typeid).\
+                                                                                filter(GenerationMove.generationid <= generation).\
+                                                                                order_by(moveShtein,GenerationMove.generationid.desc()).\
+                                                                                    first()
+    session.close()
+    if contactflag == True:
+        contact = "Contact"
+    else:
+        contact = "Non-Contact"
+    message = str(movename)+" - Gen "+str(gen)+": ("+str(movetype)+", "+str(category)+", "+str(contact)+") | PP: "+str(pp)
+    if power > 0:
+        message += " | Power: "+str(power)
+    if acc > 0:
+        message += " | Acc: "+str(acc)
+    message += " | Priority: "+str(priority)+" | Summary: "+description
+    print(message)
+    return {'message':message,'returnid':moveid}
+    
+@app.route("/api/v2.0/nature/<naturename>")
+def getNature(naturename):
+    session = Session(engine)
+    raisedStat,loweredStat = aliased(Stat),aliased(Stat)
+    natureShtein = func.levenshtein(Nature.naturename,naturename).label("natureShtein")
+    naturename,neutralflag,raisedstat,loweredstat,natureid = session.query(Nature.naturename,Nature.neutralnatureflag,raisedStat.statname,loweredStat.statname,Nature.natureid).\
+                        select_from(Nature).\
+                        join(raisedStat,Nature.raisedstatid == raisedStat.statid).\
+                        join(loweredStat,Nature.loweredstatid == loweredStat.statid).\
+                        order_by(natureShtein).first()
+    session.close()
+    if neutralflag == True:
+        message = naturename+" is a neutral nature."
+    elif neutralflag == False:
+        message = naturename+": +"+raisedstat+"/-"+loweredstat
+    # print(message)
+    return {'message':message,'returnid':natureid}
 
+@app.route("/api/v2.0/pokecom/")
+def getCommands():
+    session = Session(engine)
+    commands = session.query(Command.commandname).filter(Command.commandname != 'join').order_by(Command.commandname).all()
+    message = "Available commands: "
+    session.close()
+    for command in commands:
+        message+= command[0]+", "
+    message = message[0:len(command)-3]
+    message += ". Use !help <command> for a description."
+    # print(message)
+    return {'message':message,'returnid':None}
+
+@app.route("/api/v2.0/pokegame/<gamename>")
+def updateGame(gamename):
+    session = Session(engine)
+    twitchuserid = int(request.args.get("twitchuserid"))
+    gameShtein = func.least(func.levenshtein(Game.gamename,gamename),func.levenshtein(GameGroup.gamegroupabbreviation,gamename.upper())).label("gameShtein")
+    try:
+        gameid,gamename = session.query(Game.gameid,Game.gamename).join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).order_by(gameShtein).first()
+        stmt = (update(Channel).where(Channel.twitchuserid == twitchuserid).values(gameid=gameid))
+        session.execute(stmt)
+        session.commit()
+    finally:
+        session.close()
+    message = "Successfully changed the game to "+gamename+"."
+    # print(message)
+    return {'message':message,'returnid':gameid}
+    
+@app.route("/api/v2.0/pokeops/<operantlist>")
+def insertOperant(operantlist):
+    operantlist = operantlist.split(' ')
+    if len(operantlist) < 1:
+        return {'message':"This command requires at least one username to add to the user list.",'returnid':None}
+    session = Session(engine)
+    channeltwitchuserid = int(request.args.get("twitchuserid"))
+    print(channeltwitchuserid)
+    newchannelperants = []
+    newtwitchusers = []
+    for operant in operantlist:
+        print(operant)
+        operanttwitchuserid = int(getTwitchID(operant))
+        print(operanttwitchuserid)
+        newtwitchusers.append({'twitchuserid':operanttwitchuserid,'twitchusername':operant})
+        newchannelperants.append({"channeltwitchuserid":channeltwitchuserid,"operanttwitchuserid":operanttwitchuserid,"operanttypeid":2})
+        print(newchannelperants)
+    try:
+        stmt = (insert(TwitchUser).values(newtwitchusers))
+        session.execute(stmt)
+        session.commit()
+    except:
+        traceback.print_exc()
+    finally:
+        session.close()
+    try:
+        stmt = (insert(ChannelOperant).values(newchannelperants).on_conflict_do_nothing(constraint='pk_channeloperant'))
+        session.execute(stmt)
+        session.commit()
+    except:
+        traceback.print_exc()
+    finally:
+        session.close()
+    message = "Successfully added bot users to configuration."
+    print(message)
+    return {'message':message,'returnid':None}
+
+@app.route("/api/v2.0/removeops/<removelist>")
+def removeOperant(removelist):
+    removelist = removelist.split(' ')
+    session = Session(engine)
+    channeltwitchuserid = int(request.args.get("twitchuserid"))
+    removeoperants = []
+    for removal in removelist:
+        operanttwitchuserid = getTwitchID(removal)
+        try:
+            stmt = (delete(ChannelOperant).where(ChannelOperant.channeltwitchuserid==channeltwitchuserid,ChannelOperant.operanttwitchuserid==operanttwitchuserid))
+            session.execute(stmt)
+            session.commit()
+        except:
+            traceback.print_exc()
+            session.rollback()
+        finally:
+            session.close()
+    session.close()
+    message = "Successfully removed bot users from configuration."
+    # print(message)
+    return {'message':message,'returnid':None}
+
+def getTwitchID(username):
+    file = 'chatbot.ini'
+    config.read(file)
+    idsecret = config['idfetch']['secret']
+    idclient = config['idfetch']['clientid']
+    authURL = 'https://id.twitch.tv/oauth2/token'
+    AutParams = {'client_id': idclient,
+             'client_secret': idsecret,
+             'grant_type': 'client_credentials'
+             }
+    AutCall = requests.post(url=authURL, params=AutParams)
+    access_token = AutCall.json()['access_token']
+    url = 'https://api.twitch.tv/helix/users?login='+username
+    headers = {
+        'Authorization':"Bearer " + access_token,
+        'Client-Id':idclient
+    }
+    response = requests.get(url,headers=headers)
+    response.json()['data'][0]['id']
+    userid = response.json()['data'][0]['id']
+    print(userid)
+    return userid
+
+@app.route("/api/v2.0/type/<monname>")
+def getTypes(monname):
+    session = Session(engine)
+    twitchuserid = int(request.args.get("twitchuserid"))
+    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+    monid,monName,gamegroup,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupname,GameGroup.generationid).\
+                        select_from(PokemonGameAvailability).\
+                        join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                        join(Game,Channel.gameid == Game.gameid).\
+                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                        join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+                        join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                        filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                        order_by(monShtein).first()
+    try:
+
+        type1name = session.query(Type.typename).\
+                    select_from(PokemonType).\
+                    join(Type).\
+                    filter(PokemonType.pokemontypeorder == 1,PokemonType.pokemonid == monid,PokemonType.generationid <= generation).\
+                    order_by(PokemonType.generationid.desc()).first()[0]
+        type2name = session.query(Type.typename).\
+                    select_from(PokemonType).\
+                    join(Type).\
+                    filter(PokemonType.pokemontypeorder == 2,PokemonType.pokemonid == monid,PokemonType.generationid <= generation).\
+                    order_by(PokemonType.generationid.desc()).first()
+    except:
+        traceback.print_exc()
+        session.rollback()
+    finally:
+        session.close()
+    if type2name == None:
+        message = monName+" (Gen "+str(generation)+"): "+type1name
+    else:
+        type2name = type2name[0]
+        message = monName+" (Gen "+str(generation)+"): "+type1name+"/"+type2name
+    # print(message)
+    return {'message':message,'returnid':monid}
+      
+@app.route("/api/v2.0/weak/<monname>")
+def getWeaknesses(monname):
+    session = Session(engine)
+    twitchuserid = int(request.args.get("twitchuserid"))
+    try:
+        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+        monid,monName,gamegroup,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupname,GameGroup.generationid).\
+                        select_from(PokemonGameAvailability).\
+                        join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                        join(Game,Channel.gameid == Game.gameid).\
+                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                        join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+                        join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                        filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                        order_by(monShtein).first()
+    except:
+        traceback.print_exc()
+        session.rollback()
+    finally:
+        session.close()
+    # weakSel = [     AttackingTypeEffectivenessByPokemon.dmgmodifier,
+    #                 AttackingTypeEffectivenessByPokemon.type1name,
+    #                 AttackingTypeEffectivenessByPokemon.type2name,
+    #                 AttackingTypeEffectivenessByPokemon.generation]
+    try:
+        type1id,type1name = session.query(Type.typeid,Type.typename).\
+                    select_from(PokemonType).\
+                    join(Type).\
+                    filter(PokemonType.pokemontypeorder == 1,PokemonType.pokemonid == monid,PokemonType.generationid <= generation).\
+                    order_by(PokemonType.generationid.desc()).first()
+        type2 = session.query(Type.typeid,Type.typename).\
+                    select_from(PokemonType).\
+                    join(Type).\
+                    filter(PokemonType.pokemontypeorder == 2,PokemonType.pokemonid == monid,PokemonType.generationid <= generation).\
+                    order_by(PokemonType.generationid.desc()).first()
+        attackingType = aliased(Type)
+        if type2:
+            type2id,type2name = type2
+            modifier2 = session.query(TypeMatchup.damagemodifier.label('dmgmodifier'),attackingType.typeid.label('typeid')).\
+                select_from(TypeMatchup).\
+                join(attackingType,(TypeMatchup.attackingtypeid == attackingType.typeid) & (attackingType.generationid <= generation)).\
+                filter(TypeMatchup.generationid == generation,TypeMatchup.defendingtypeid == type2id).\
+                    distinct(attackingType.typename).subquery()
+            modifier1 = session.query(TypeMatchup.damagemodifier.label('dmgmodifier'),attackingType.typeid.label('typeid')).\
+                select_from(TypeMatchup).\
+                join(attackingType,(TypeMatchup.attackingtypeid == attackingType.typeid) & (attackingType.generationid <= generation)).\
+                filter(TypeMatchup.generationid == generation,TypeMatchup.defendingtypeid == type1id).\
+                    distinct(attackingType.typename).subquery()
+            modifiers = session.query((modifier2.c.dmgmodifier*modifier1.c.dmgmodifier).label('dmgmodifier'),modifier2.c.typeid).\
+                select_from(modifier1).join(modifier2,modifier1.c.typeid == modifier2.c.typeid).subquery()
+        else:
+            type2id = None
+            modifiers = session.query(TypeMatchup.damagemodifier.label('dmgmodifier'),attackingType.typeid.label('typeid')).\
+                select_from(TypeMatchup).\
+                join(attackingType,(TypeMatchup.attackingtypeid == attackingType.typeid) & (attackingType.generationid <= generation)).\
+                filter(TypeMatchup.generationid == generation,TypeMatchup.defendingtypeid == type1id).\
+                    subquery()
+        modifiersfinal = session.query(modifiers.c.dmgmodifier,func.string_agg(attackingType.typename,aggregate_order_by((", "),attackingType.typename))).\
+                join(attackingType,modifiers.c.typeid == attackingType.typeid).\
+                group_by(modifiers.c.dmgmodifier).all()
+        # modifiers = session.query(*weakSel).select_from(AttackingTypeEffectivenessByPokemon).\
+        #             join(Pokemon,AttackingTypeEffectivenessByPokemon.pokemonid == Pokemon.pokemonid).\
+        #             join(Type,AttackingTypeEffectivenessByPokemon.attackingtypeid == Type.typeid).\
+        #             filter(Pokemon.pokemonid == monid,AttackingTypeEffectivenessByPokemon.generation == generation).\
+        #             group_by(Pokemon.pokemonname,
+        #             AttackingTypeEffectivenessByPokemon.dmgmodifier,
+        #             AttackingTypeEffectivenessByPokemon.type1name,
+        #             AttackingTypeEffectivenessByPokemon.type2name,
+        #             AttackingTypeEffectivenessByPokemon.generation).\
+        #             order_by(Pokemon.pokemonname,
+        #             AttackingTypeEffectivenessByPokemon.dmgmodifier.asc(),
+        #             AttackingTypeEffectivenessByPokemon.type1name,
+        #             AttackingTypeEffectivenessByPokemon.type2name,
+        #             AttackingTypeEffectivenessByPokemon.generation).all()
+    except:
+        traceback.print_exc()
+        session.rollback()
+    finally:
+        session.close()
+    message = monName+" ("+type1name
+    if type2:
+        message += "/"+type2name
+    message += "), Gen "+str(generation)+" = "
+    for modifier,typelist in modifiersfinal:
+        message+= "["+(str(modifier)+"x").replace("0.25x","¼").replace("0.50x","½").replace("0.5x","½").replace("0.00","0").replace("0.0","0").replace(".00","").replace(".0","")+": "+typelist+"] - "
+    message = message[0:len(message)-2]
+    # print(message)
+    return {'message':message,'returnid':monid}
+    
+@app.route("/api/v2.0/xp/<parameters>")
+def getXP(parameters):
+    parameters = parameters.split(" ")
+    session = Session(engine)
+    twitchuserid = int(request.args.get("twitchuserid"))
+    try:
+        monname = str(parameters[len(parameters)-1])
+        enemylevel = int(parameters[0])
+    except:
+        enemylevel = str(parameters[len(parameters)-1])
+        monname = int(parameters[0])
+    try:
+        monlevel = int(parameters[1])
+    except:
+        monlevel = None
+    session.close()
+    session = Session(engine)
+    try:
+        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+        monid,monName,gamegroup,gamegroupabbr,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupabbreviation,GameGroup.generationid).\
+                        select_from(PokemonGameAvailability).\
+                        join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                        join(Game,Channel.gameid == Game.gameid).\
+                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                        join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+                        join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                        filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                        order_by(monShtein).first()
+    except:
+        traceback.print_exc()
+        session.rollback()
+    finally:
+        session.close()
+    if enemylevel > 100:
+        return {"message":"Max level for the !xp command is 100. Adjust the level and try again.",'returnid':monid}
+    try:
+        monyield, monName, monid = session.query(PokemonExperienceYield.experienceyieldvalue,Pokemon.pokemonname,Pokemon.pokemonid).\
+                        select_from(PokemonExperienceYield).\
+                        join(Pokemon,PokemonExperienceYield.pokemonid == Pokemon.pokemonid).\
+                        filter(PokemonExperienceYield.generationid <= generation,PokemonExperienceYield.pokemonid == monid).order_by(PokemonExperienceYield.generationid.desc()).\
+                            first()
+    except:
+        session.rollback()
+        traceback.print_exc()
+    finally:
+        session.close()
+    monyield = float(monyield)
+    a = 1
+    b = monyield
+    L = enemylevel
+    L2 = enemylevel if monlevel is None else monlevel
+    s = 1
+    if generation != 5 and generation != 7:
+        wildxp = str(int(math.floor(b*a*L/7)))
+        a = 1.5
+        trainerxp = str(int(math.floor(float(wildxp)*1.5)))
+    elif generation == 5:
+        wildxp = str(int(math.floor((1*monyield*enemylevel/5)*math.pow((2*enemylevel+10)/(enemylevel+monlevel+10),2.5))+1))
+        a = 1.5
+        trainerxp = str(int(math.floor((1.5*monyield*enemylevel/5)*math.pow((2*enemylevel+10)/(enemylevel+monlevel+10),2.5))+1))
+    elif generation == 7:
+        monEvo = getEvos(parameters)
+        try:
+            evoLevel = monEvo[0][1]
+        except:
+            evoLevel = L2+1
+        if int(L2) >= int(evoLevel):
+            v = 1.2
+        else:
+            v = 1
+        wildxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
+        trainerxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
+    message = monName+" XP ("+gamegroupabbr+"): Wild="+wildxp+"/Trainer="+trainerxp
+    # print(message)
+    return {'message':message,'returnid':monid}      
+
+#######################
+### OTHER FUNCTIONS ###
+#######################
 
 if __name__ == '__main__':
     app.run()

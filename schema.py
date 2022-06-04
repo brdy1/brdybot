@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Table, Integer, String, Boolean, DateTime, ForeignKey
+from ast import For
+from decimal import Decimal
+from sqlalchemy import BigInteger, Column, Table, Integer, String, Boolean, DateTime, ForeignKey, DECIMAL
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base, DeferredReflection
 import configparser
@@ -15,7 +17,7 @@ password = config['database']['password']
 #################################################
 # Database Setup
 #################################################
-dbschema='pokemon,bot'
+dbschema='pokemon,bot,warehouse'
 engine = create_engine('postgresql+psycopg2://'+user+':'+password+'@'+host+':5432/'+database,connect_args={'options': '-csearch_path={}'.format(dbschema)})
 Base = declarative_base(engine)
     
@@ -23,6 +25,12 @@ class Ability(Base):
     __tablename__ = 'ability'
     abilityid = Column("abilityid",Integer,primary_key=True)
     abilityname = Column("abilityname",String(30))
+
+class EvolutionType(Base):
+    __tablename__ = 'evolutiontype'
+    evolutiontypeid = Column("evolutiontypeid",Integer,primary_key=True)
+    evolutiontypename = Column("evolutiontypename",String(50))
+    evolutiontypedescription = Column("evolutiontypedescription",String(500))
 
 class Game(Base):
     __tablename__ = 'game'
@@ -35,6 +43,7 @@ class GameGroup(Base):
     gamegroupid = Column("gamegroupid",Integer,primary_key=True)
     gamegroupname = Column("gamegroupname",String(30))
     gamegroupabbreviation = Column("gamegroupabbreviation",String(30))
+    gamegrouporder = Column("gamegrouporder",Integer)
     generationid = Column("generationid", Integer, ForeignKey("generation.generationid"))
     
 class Generation(Base):
@@ -42,6 +51,13 @@ class Generation(Base):
     generationid = Column("generationid",Integer,primary_key=True)
     generationname = Column("generationname",String(50))
     
+class GenerationAbility(Base):
+    __tablename__ = 'generationability'
+    generationabilityid = Column("generationabilityid",Integer,primary_key=True)
+    abilityid = Column("abilityid",Integer,ForeignKey("ability.abilityid"))
+    abilitydescription = Column("abilitydescription",String(500))
+    generationid = Column("generationid",Integer,ForeignKey("generation.generationid"))
+
 class GenerationMove(Base):
     __tablename__ = 'generationmove'
     generationmoveid = Column("generationmoveid",Integer,primary_key=True)
@@ -65,7 +81,14 @@ class LevelingRate(Base):
     __tablename__ = 'levelingrate'
     levelingrateid = Column("levelingrateid",Integer,primary_key=True)
     levelingratename = Column("levelingratename",String(30))
-    
+
+class LevelingRateLevelThreshold(Base):
+    __tablename__ = 'levelingratelevelthreshold'
+    levelingratethresholdid = Column('levelingratelevelthresholdid',Integer,primary_key=True)
+    levelingrateid = Column('levelingrateid',Integer,ForeignKey('levelingrate.levelingrateid'))
+    levelingratelevelthresholdlevel = Column('levelingratelevelthresholdlevel',Integer)
+    levelingratelevelthresholdexperience = Column('levelingratelevelthresholdexperience',BigInteger)
+
 class Location(Base):
     __tablename__ = 'location'
     locationid = Column("locationid",Integer,primary_key=True)
@@ -87,7 +110,14 @@ class MoveNickname(Base):
     moveid = Column("moveid",Integer,ForeignKey("move.moveid"))
     movenickname = Column("movenickname",String(50))
 
-    
+class Nature(Base):
+    __tablename__ = "nature"
+    natureid = Column("natureid",Integer,primary_key=True)
+    naturename = Column("naturename",String(20))
+    neutralnatureflag = Column("neutralnatureflag",Boolean)
+    raisedstatid = Column("raisedstatid",Integer,ForeignKey("stat.statid"))
+    loweredstatid = Column("loweredstatid",Integer,ForeignKey("stat.statid"))
+
 class Pokemon(Base):
     __tablename__ = 'pokemon'
     pokemonid = Column("pokemonid",Integer,primary_key=True)
@@ -109,11 +139,24 @@ class PokemonAvailabilityType(Base):
 class PokemonEvolution(Base):
     __tablename__ = 'pokemonevolution'
     pokemonevolutionid = Column("pokemonevolutionid",Integer,primary_key=True)
-    pokemonevolutiontypeid = Column("pokemonevolutiontypeid",Integer)
+    evolutiontypeid = Column("evolutiontypeid",Integer,ForeignKey("evolutiontype.evolutiontypeid"))
     basepokemonid = Column("basepokemonid",Integer)
     targetpokemonid = Column("targetpokemonid",Integer)
     gamegroupid = Column("gamegroupid",Integer,ForeignKey("gamegroup.gamegroupid"))
     
+class PokemonEvolutionInfo(Base):
+    __tablename__ = 'pokemonevolutioninfo'
+    pokemonevolutionid = Column("pokemonevolutionid",Integer,primary_key=True)
+    evolutiontypeid = Column("evolutiontypeid",Integer,ForeignKey("evolutiontype.evolutiontypeid"))
+    basepokemonid = Column("basepokemonid",Integer)
+    targetpokemonid = Column("targetpokemonid",Integer)
+    gamegroupid = Column("gamegroupid",Integer,ForeignKey("gamegroup.gamegroupid"))
+    itemid = Column("itemid",Integer, ForeignKey("item.itemid"))
+    pokemonevolutionlevel = Column("pokemonevolutionlevel",Integer)
+    locationid = Column("locationid",Integer, ForeignKey("location.locationid"))
+    moveid = Column("moveid",Integer, ForeignKey("move.moveid"))
+    pokemonevolutionstring = Column("pokemonevolutionuniquestring",String(150))
+
 class PokemonEvolutionItem(Base):
     __tablename__ = 'pokemonevolutionitem'
     pokemonevolutionid = Column("pokemonevolutionid",Integer, ForeignKey("pokemonevolution.pokemonevolutionid"), primary_key=True)
@@ -190,6 +233,7 @@ class PokemonType(Base):
     __tablename__ = 'pokemontype'
     pokemontypeid = Column("pokemontypeid",Integer,primary_key=True)
     pokemonid = Column("pokemonid",Integer,ForeignKey("pokemon.pokemonid"))
+    pokemontypeorder = Column("pokemontypeorder",Integer)
     typeid = Column("typeid",Integer,ForeignKey("type.typeid"))
     generationid = Column("generationid",Integer,ForeignKey("generation.generationid"))
     
@@ -203,28 +247,33 @@ class Type(Base):
     __tablename__ = 'type'
     typeid = Column("typeid",Integer,primary_key=True)
     typename = Column("typename",String(20))
+    generationid = Column("generationid",Integer,ForeignKey("generation.generationid"))
     
 class TypeMatchup(Base):
     __tablename__ = 'typematchup'
     typematchupid = Column("typematchupid",Integer,primary_key=True)
     attackingtypeid = Column("attackingtypeid",Integer,ForeignKey("type.typeid"))
     defendingtypeid = Column("defendingtypeid",Integer,ForeignKey("type.typeid"))
-    damagemodifier = Column("damagemodifier",Integer)
+    damagemodifier = Column("damagemodifier",DECIMAL)
     generationid = Column("generationid",Integer,ForeignKey("generation.generationid"))
 
 class Channel(Base):
-    __tablename__ = 'channel'
-    channelid = Column("channelid",Integer,primary_key=True)
-    channelname = Column("channelname",String(35))
+    __tablename__ = 'channelclean'
     gameid = Column("gameid",Integer,ForeignKey("game.gameid"))
-    twitchuserid = Column("twitchuserid",Integer,ForeignKey("twitchuser.twitchuserid"))
+    twitchuserid = Column("twitchuserid",Integer,ForeignKey("twitchuser.twitchuserid"),primary_key=True)
 
 class ChannelCommandRequest(Base):
     __tablename__ = 'channelcommandrequest'
     channelcommandrequestid = Column('channelcommandrequestid',Integer,primary_key=True)
     commandid = Column('commandid',Integer,ForeignKey("command.commandid"))
-    channelid = Column('channelid',Integer,ForeignKey('channel.channelid'))
-    operantid = Column('operantid',Integer,ForeignKey('operant.operantid'))
+    channeltwitchuserid = Column('channeltwitchuserid',Integer,ForeignKey('twitchuser.twitchuserid'))
+    operanttwitchuserid = Column('operanttwitchuserid',Integer,ForeignKey('twitchuser.twitchuserid'))
+    abilityid = Column('abilityid',Integer)
+    pokemonid = Column('pokemonid',Integer)
+    natureid = Column('natureid',Integer)
+    nmoveid = Column('moveid',Integer)
+    gameid = Column('gameid',Integer)
+    commandselectid = Column('commandselectid',Integer)
     channelcommandrequesttime = Column('channelcommandrequesttime',DateTime)
     channelcommandrequestreturn = Column('channelcommandrequestreturn',String(300))
 
@@ -237,6 +286,7 @@ class ChannelCommandRequestParameter(Base):
 class ChannelDeletion(Base):
     __tablename__ = 'channeldeletion'
     channelid = Column("channelid",Integer,ForeignKey("channel.channelid"),primary_key=True)
+    twitchuserid = Column("twitchuserid",Integer,ForeignKey("twitchuser.twitchuserid"))
     deletiontime = Column('deletiontime',DateTime)
 
 class ChannelError(Base):
@@ -245,13 +295,12 @@ class ChannelError(Base):
     channelcommandrequestid = Column("channelcommandrequestid",Integer,ForeignKey("channelcommandrequest.channelcommandrequestid"))
     errortypeid = Column("errortypeid",Integer,ForeignKey("errortype.errortypeid"))
     channelerrortime = Column("channelerrortime",DateTime)
-    channelid = Column("channelid",Integer,ForeignKey("channel.channelid"))
+    channeltwitchuserid = Column("channelid",Integer,ForeignKey("channel.channelid"))
 
 class ChannelOperant(Base):
-    __tablename__ = 'channeloperant'
-    channeloperantid = Column("channeloperantid",Integer,primary_key=True)
-    channelid = Column("channelid",Integer,ForeignKey("channel.channelid"))
-    operantid = Column("operantid",Integer,ForeignKey("operant.operantid"))
+    __tablename__ = 'channeloperantclean'
+    channeltwitchuserid = Column("channeltwitchuserid",Integer,ForeignKey("twitchuser.twitchuserid"),primary_key=True)
+    operanttwitchuserid = Column("operanttwitchuserid",Integer,ForeignKey("twitchuser.twitchuserid"),primary_key=True)
     operanttypeid = Column("operanttypeid",Integer,ForeignKey("operanttype.operanttypeid"))
 
 class Command(Base):
@@ -280,27 +329,39 @@ class ErrorType(Base):
     errortypename = Column("errortypename",String(50))
     errortypedescription = Column("errortypedescription",String(300))
 
-class Operant(Base):   
-    __tablename__ = 'operant'
-    operantid = Column("operantid",Integer,primary_key=True)
-    operantname = Column("operantname",String(50))
-    twitchuserid = Column("twitchuserid",Integer,ForeignKey("twitchuser.twitchuserid"))
-
 class OperantType(Base):
     __tablename__ = 'operanttype'
     operanttypeid = Column("operanttypeid",Integer,primary_key=True)
     operanttypename = Column("operanttypename",String(50))
     operanttypedescription = Column("operanttypedescription",String(300))
 
-class OperantTypeCommand(Base):
-    __tablename__ = 'operanttypecommand'
-    operanttypeid = Column("operanttypeid",Integer,ForeignKey("operanttype.operanttypeid"),primary_key=True)
-    commandid = Column("commandid",Integer,ForeignKey("command.commandid"))
-
 class TwitchUser(Base):
     __tablename__ = 'twitchuser'
     twitchuserid = Column("twitchuserid",Integer,primary_key=True)
     twitchusername = Column("twitchusername",String(100))
+
+##### WAREHOUSE SCHEMA
+
+class PokemonTypesByGeneration(Base):
+    __tablename__ = 'pokemontypesbygeneration'
+    pokemontypesbygenerationid = Column("pokemontypesbygenerationid",Integer,primary_key = True)
+    pokemonid = Column("pokemonid",Integer,ForeignKey("pokemon.pokemonid"))
+    generationid = Column("generationid",Integer,ForeignKey("generation.generationid"))
+    type1id = Column("type1id",Integer,ForeignKey("type.typeid"))
+    type2id = Column("type2id",Integer)
+
+class AttackingTypeEffectivenessByPokemon(Base):
+    __tablename__ = 'attackingtypeeffectivenessbypokemon'
+    attackingtypedamagemodifierbypokemonandgeneration_key = Column("attackingtypedamagemodifierbypokemonandgeneration_key",String(100),primary_key = True)
+    pokedexnumber = Column("pokedexnumber",Integer)
+    pokemonid = Column("pokemonid",Integer,ForeignKey("pokemon.pokemonid"))
+    pokemonname = Column("pokemonname",String(50))
+    type1name = Column("type1name",String(50))
+    type2name = Column("type2name",String(50))
+    generation = Column("generation",Integer,ForeignKey("generation.generationid"))
+    attackingtypeid = Column("attackingtypeid",Integer,ForeignKey("type.typeid"))
+    attackingtypename = Column("attackingtypename",String(50))
+    dmgmodifier = Column("dmgmodifier",DECIMAL)
 
 Base.metadata.create_all(engine)
 
