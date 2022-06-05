@@ -507,8 +507,8 @@ def getNature(naturename):
     natureShtein = func.levenshtein(Nature.naturename,naturename).label("natureShtein")
     naturename,neutralflag,raisedstat,loweredstat,natureid = session.query(Nature.naturename,Nature.neutralnatureflag,raisedStat.statname,loweredStat.statname,Nature.natureid).\
                         select_from(Nature).\
-                        join(raisedStat,Nature.raisedstatid == raisedStat.statid).\
-                        join(loweredStat,Nature.loweredstatid == loweredStat.statid).\
+                        join(raisedStat,Nature.raisedstatid == raisedStat.statid,isouter=True).\
+                        join(loweredStat,Nature.loweredstatid == loweredStat.statid,isouter=True).\
                         order_by(natureShtein).first()
     session.close()
     if neutralflag == True:
