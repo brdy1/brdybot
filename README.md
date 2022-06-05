@@ -10,80 +10,30 @@ The IRC listener (chatbot) joins your channel, listens for and sends commands to
 # Bot
 The bot has the following commands available:
 
-- !abbrevs: Returns all available game names and their abbreviations to the chat.
-
- ![image](screens/abbrevs.PNG)
-
-- !ability: User sends an ability name as a parameter, and the bot returns information about it to the chat.
-
- ![image](screens/ability2.PNG) 
- ![image](screens/ability.PNG) 
-
-- !botinfo: The bot returns basic information and links related to the bot.
-
-- !brdybotleave: Makes the bot leave the current channel. Only channel owner can use this command.
-
-- !bst: User sends the name of a Pokemon as a parameter, and the bot returns the BST for the current generation.
-
- ![image](screens/bst.PNG)
-
-- !coverage: Takes one or more types as inputs, and outputs the number of Pokemon in the current game that fall into each maximum damage effectiveness bracket.
-
- ![image](screens/coverage.PNG)
-
-- !gamelist: Lists the games available to be changed to with the !pokegame command.
-
- ![image](screens/gamelist.PNG)
-
-- !help: User sends the name of a command, and the bot returns the description of a command to chat.
-
-![image](screens/help.PNG)
-
-- !join: Any user may type this in the bot's channel to have it join their channel.
-
-- !learnset: User sends the name of a Pokemon as a parameter, and the bot returns the levels at which that Pokemon learns moves in the current game.
-
- ![image](screens/learnset.PNG)
-
-- !listops: Lists all operants for the current channel.
-
- ![image](screens/listops.PNG)
-
-- !mon: User sends a Pokemon name as a parameter, and the bot returns information about it to the chat.
-
- ![image](screens/mon.PNG)
- ![image](screens/mon2.PNG) 
-
-- !move: User sends a move name as a parameter, and the bot returns information about it to the chat.
-
- ![image](screens/move.PNG)
- ![image](screens/move2.PNG)
-
-- !nature: User sends a nature name as a parameter, and the bot returns the affected attributes to the chat.
-
- ![image](screens/nature.PNG) 
-
-- !pokecom: The bot retrieves and returns all pokemon commands available.
-
- ![image](screens/commands.PNG)
-
-- !pokegame: User sends a game name or abbreviation as a parameter, and the bot changes the game for the channel.
-
- ![image](screens/game.PNG) 
- ![image](screens/game2.PNG)
-
-- !pokeops: User sends an Operant Name and Operant Type as parameters, and the bot changes the corresponding user's Operant Type
-
- ![image](screens/pokeops.PNG)
-
-- !removeops: Takes one or more usernames and removes permissions for them in the channel.
-
- ![image](screens/removeops.PNG)
-
-- !type: User sends the name of a Pokemon as a parameter, and the bot returns the type for the Pokemon in the current generation.
-
- ![image](screens/type.PNG)
-
-- !weak: User sends a Pokemon name as a parameter, and the bot returns type effectiveness information about it to the chat.
-
- ![image](screens/weak.PNG)
+| Image 	|	 Command 	|	 Description 	|	 Type 	|	 Min Param 	|	 Max Param 	|
+| :--------------:	|	:---------:	|	:---------:	|	:---------:	|	:----:	|	:----:	|
+![image](screens/abbrevs.PNG)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |	abbrevs	|	Returns all available game abbreviations to the chat.	|	bot	|	0	|	0	|
+![image](screens/ability.PNG)	|	ability	|	User sends an ability name as a parameter, and the bot returns information about it to the chat.	|	ability	|	1	|		|
+![image](screens/botinfo.PNG)	|	botinfo	|	The bot returns basic information and links related to the bot.	|	bot	|	0	|	0	|
+--	|	brdybotleave	|	Make the bot leave your channel (channel owner only).	|	bot	|	0	|	0	|
+![image](screens/bst.PNG)	|	bst	|	User sends the name of a Pokemon as a parameter, and the bot returns the base stat total for that Pokemon for the current generation.	|	pokemon	|	1	|		|
+![image](screens/coverage.PNG)	|	coverage	|	Takes one or more types as inputs, and outputs the number of Pokemon in the current game that fall into each maximum damage effectiveness bracket.	|	types	|	1	|		|
+![image](screens/coveragecomb.PNG)	|	coveragecomb	|	User sends a number between 2 and 4 (x) and a number of types at least 1 greater than x but no greater than 5. The bot will query the !coverage command for all the possible combinations of x types among the types given. Requires Mod or VIP priviliges to work effectively.	|	types	|	3	|	6	|
+![image](screens/evos.PNG)	|	evos	|	User sends the name of a pokemon as a parameter, and the bot returns all evolutions for that pokemon available in the currently selected game.	|	pokemon	|	1	|		|
+![image](screens/gamelist.PNG)	|	gamelist	|	Lists the games available to be changed to with the !pokegame command.	|	bot	|	0	|	0	|
+![image](screens/help.PNG)	|	help	|	User sends the name of a command, and the bot returns the description of that command to chat.	|	commandselect	|	0	|	0	|
+--|	join	|	Any user may type this in the bot's channel to have it join their channel.	|	bot	|	0	|	0	|
+![image](screens/learnset.PNG)	|	learnset	|	User sends the name of a Pokemon as a parameter, and the bot returns the levels at which that Pokemon learns moves in the current game.	|	pokemon	|	1	|		|
+![image](screens/learnsetshort.PNG)	|	learnsetshort	|	User sends the name of a pokemon as a parameter, and the bot returns a list of levels at which it learns moves in the currently selected game.	|	pokemon	|	1	|		|
+![image](screens/level.PNG)	|	level	|	User sends three (3) parameters - the name of a growth rate (either Erratic, Fast, Medium Fast, Medium Slow, Slow, Fluctuating), a starting level, and an ending level. The bot will return the total required experience to go from the starting level to the ending level.	|	levelingrate	|	3	|	3	|
+![image](screens/listops.PNG)	|	listops	|	Lists all operants for the current channel.	|	bot	|	0	|	0	|
+![image](screens/mon.PNG)	|	mon	|	User sends a Pokemon name as a parameter, and the bot returns summary information about it to the chat.	|	pokemon	|	1	|		|
+![image](screens/move.PNG)	|	move	|	User sends a move name as a parameter, and the bot returns information about it to the chat.	|	move	|	1	|		|
+![image](screens/nature.PNG)	|	nature	|	User sends a nature name as a parameter, and the bot returns the affected attributes to the chat.	|	nature	|	1	|		|
+![image](screens/pokecom.PNG)	|	pokecom	|	The bot retrieves and returns all pokemon commands available.	|	command	|	0	|	0	|
+![image](screens/pokegame.PNG)	|	pokegame	|	User sends a game name or abbreviation as a parameter, and the bot changes the game for the channel.	|	game	|	1	|		|
+![image](screens/pokeops.PNG)	|	pokeops	|	Send a list of usernames separated by a single space to add as bot operators in your channel. ex: !pokeops juicytoaster bayleef murkus iateyourpie	|	bot	|	1	|	20	|
+![image](screens/removeops.PNG)	|	removeops	|	Takes one or more usernames and removes permissions for them in the channel.	|	bot	|	1	|		|
+![image](screens/type.PNG)	|	type	|	User sends the name of a Pokemon as a parameter, and the bot returns the type for the Pokemon in the current generation.	|	pokemon	|	1	|		|
+![image](screens/weak.PNG)	|	weak	|	User sends a Pokemon name as a parameter, and the bot returns type effectiveness information about it to the chat.	|	pokemon	|	1	|		|
+![image](screens/xp.PNG)	|	xp	|	User sends a pokemon's level, optionally the winning pokemon's level, and the name of the Pokemon. The bot will return the full xp value from fainting that pokemon in battle.	|	pokemon	|	2	|	3	|
