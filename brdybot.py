@@ -19,6 +19,7 @@ import traceback
 from time import sleep
 from datetime import datetime
 from sqlalchemy.orm import aliased
+import re
 from app import getCommands, getTwitchID,insert,update,delete,Session
 
 dbschema='pokemon,bot'
@@ -63,6 +64,7 @@ class Bot():
             server.send(bytes('JOIN #' + channel + '\r\n', 'utf-8'))
             #listening loop
             print("Starting bot in channel " +channel + " with operants: "+str(operators))
+            pattern = re.compile(r'^:[a-zA-Z0-9]{3,25}![a-zA-Z0-9]{3,25}@([a-zA-Z0-9]{3,25})\.tmi\.twitch\.tv\s+PRIVMSG\s+#[a-zA-Z0-9]{3,25}\s+:(.*?)$', re.M)
             while listenFlag:
                 try:
                     message = None
@@ -75,28 +77,23 @@ class Bot():
                         responsesplit = str(response).split(":!")
                         if channel == 'brdy':
                             print(responsesplit)
-                        for precommand in responsesplit:
-                            if channel == 'brdy':
-                                print(precommand)
-                            if "PRIVMSG" in precommand and (responsesplit.index(precommand) == 0 or (len(responsesplit) > 1 and ":@" not in precommand)):
-                                requestername = precommand.split("@")[len(precommand.split("@"))-1].split(".",1)[0].strip()
-                                try:
-                                    userMessage = responsesplit[responsesplit.index(precommand)+1].split(":",1)[0].strip()
-                                    command = userMessage.split(" ")[0].lower().replace("'","''").strip()
-                                    parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")[1:]
-                                    permissions = (requestername in operators.values()) or (requestername == channel) or (channel == 'brdybot') or (command == "botinfo")
-                                    if (command in list(commandDict.keys())) and (permissions or requestername == 'brdy'):
-                                        print(command)
-                                        print(commandDict)
-                                        print(twitchuserid)
-                                        print(requestername)
-                                        print(parameters)
-                                        message,ccrid = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
-                                        if message:
-                                            Bot.chatMessage(message,channel,server)
-                                            operators = Setup.getOperants(twitchuserid)
-                                except:
-                                    traceback.print_exc()
+                        for requestername, userMessage in map(lambda x: x.groups(), pattern.finditer(response)):
+                            try:
+                                command = userMessage.split(" ")[0].lower().replace("'","''").strip()
+                                parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")[1:]
+                                permissions = (requestername in operators.values()) or (requestername == channel) or (channel == 'brdybot') or (command == "botinfo")
+                                if (command in list(commandDict.keys())) and (permissions or requestername == 'brdy'):
+                                    print(command)
+                                    print(commandDict)
+                                    print(twitchuserid)
+                                    print(requestername)
+                                    print(parameters)
+                                    message,ccrid = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
+                                    if message:
+                                        Bot.chatMessage(message,channel,server)
+                                        operators = Setup.getOperants(twitchuserid)
+                            except:
+                                traceback.print_exc()
                             sleep(1)
                 except ConnectionResetError:
                     errortype = "ConnectionResetError"
