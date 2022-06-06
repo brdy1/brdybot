@@ -17,8 +17,9 @@ import threading
 import traceback
 #sleep is so the bot won't overload during listening
 from time import sleep
+from datetime import datetime
 from sqlalchemy.orm import aliased
-from app import getTwitchID,insert,update,delete,Session
+from app import getCommands, getTwitchID,insert,update,delete,Session
 
 dbschema='pokemon,bot'
 config = configparser.ConfigParser()
@@ -47,13 +48,11 @@ def main():
         #create a listening thread
         print("create listening thread")
         threading.Thread(target=Bot.ircListen, args=(conn, token, user, twitchuserid, server, operators, commanddict)).start()
-        sleep(3)
+        sleep(2.2)
 
 class Bot():
     def ircListen(conn, token, botName, twitchuserid, server, operators, commandDict):
         try:
-            #this flag is a placeholder in case I want to kill the thread for any reason - is isn't actually used to kill it currently
-            print("Setting listen flag...")
             listenFlag = True
             channel = Bot.getTwitchUserName(twitchuserid)
             #joining the channel
@@ -65,62 +64,79 @@ class Bot():
             #listening loop
             print("Starting bot in channel " +channel + " with operants: "+str(operators))
             while listenFlag:
-                message = None
-                response = server.recv(2048).decode('utf-8')
-                if len(response) == 0:
-                    continue
-                if "PING" in str(response):
-                    server.send(bytes('PONG :tmi.twitch.tv\r\n', 'utf-8'))
-                elif ":!" in str(response):
-                    responsesplit = str(response).split(":!")
-                    for precommand in responsesplit:
-                        if "PRIVMSG" in precommand and (responsesplit.index(precommand) == 0 or (len(responsesplit) > 1 and "\r\n" in precommand)):
-                            requestername = precommand.split("@")[len(precommand.split("@"))-1].split(".",1)[0].strip()
-                            try:
-                                userMessage = responsesplit[responsesplit.index(precommand)+1].split(":",1)[0].strip()
-                                command = userMessage.split(" ")[0].lower().replace("'","''").strip()
-                                parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")[1:]
-                                permissions = (requestername in operators.values()) or (requestername == channel) or (channel == 'brdybot') or (command == "botinfo")
-                                if (command in list(commandDict.keys())) and (permissions or requestername == 'brdy'):
-                                    print(command)
-                                    print(commandDict)
-                                    print(twitchuserid)
-                                    print(requestername)
-                                    print(parameters)
-                                    message,ccrid = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
-                                    if message:
-                                        Bot.chatMessage(message,channel,server)
-                                        operators = Setup.getOperants(twitchuserid)
-                            except:
-                                traceback.print_exc()
-                        sleep(1)
-        except ConnectionResetError:
-            errortype = "ConnectionResetError"
-        except IndexError:
-            errortype = "IndexError"
-        except KeyError:
-            errortype = "KeyError"
-        except RuntimeError:
-            errortype = "RuntimeError"
-        except SystemExit:
-            errortype = "SystemExit"
-        except ValueError:
-            errortype = "ValueError"
-        except BrokenPipeError:
-            errortype = "BrokenPipeError"
-        except ConnectionAbortedError:
-            errortype = "ConnectionAbortedError"
-        except ConnectionRefusedError:
-            errortype = "ConnectionRefusedError"
-        except FileNotFoundError:
-            errortype = "FileNotFoundError"
-        except TimeoutError:
-            errortype = "TimeoutError"
-        except Exception:
-            errortype = "OtherError"
+                try:
+                    message = None
+                    response = server.recv(2048).decode('utf-8')
+                    if len(response) == 0:
+                        continue
+                    if "PING" in str(response):
+                        server.send(bytes('PONG :tmi.twitch.tv\r\n', 'utf-8'))
+                    elif ":!" in str(response):
+                        responsesplit = str(response).split(":!")
+                        if channel == 'brdy':
+                            print(responsesplit)
+                        for precommand in responsesplit:
+                            if channel == 'brdy':
+                                print(precommand)
+                            if "PRIVMSG" in precommand and (responsesplit.index(precommand) == 0 or (len(responsesplit) > 1 and ":@" not in precommand)):
+                                requestername = precommand.split("@")[len(precommand.split("@"))-1].split(".",1)[0].strip()
+                                try:
+                                    userMessage = responsesplit[responsesplit.index(precommand)+1].split(":",1)[0].strip()
+                                    command = userMessage.split(" ")[0].lower().replace("'","''").strip()
+                                    parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")[1:]
+                                    permissions = (requestername in operators.values()) or (requestername == channel) or (channel == 'brdybot') or (command == "botinfo")
+                                    if (command in list(commandDict.keys())) and (permissions or requestername == 'brdy'):
+                                        print(command)
+                                        print(commandDict)
+                                        print(twitchuserid)
+                                        print(requestername)
+                                        print(parameters)
+                                        message,ccrid = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
+                                        if message:
+                                            Bot.chatMessage(message,channel,server)
+                                            operators = Setup.getOperants(twitchuserid)
+                                except:
+                                    traceback.print_exc()
+                            sleep(1)
+                except ConnectionResetError:
+                    errortype = "ConnectionResetError"
+                    listenFlag = False
+                except ConnectionAbortedError:
+                    errortype = "ConnectionAbortedError"
+                    listenFlag = False
+                except ConnectionRefusedError:
+                    errortype = "ConnectionRefusedError"
+                    listenFlag = False
+                except TimeoutError:
+                    errortype = "TimeoutError"
+                    listenFlag = False
+                except IndexError:
+                    errortype = "IndexError"
+                    listenFlag = False
+                except KeyError:
+                    errortype = "KeyError"
+                    listenFlag = False
+                except RuntimeError:
+                    errortype = "RuntimeError"
+                    listenFlag = False
+                except SystemExit:
+                    errortype = "SystemExit"
+                    listenFlag = False
+                except ValueError:
+                    errortype = "ValueError"
+                    listenFlag = False
+                except BrokenPipeError:
+                    errortype = "BrokenPipeError"
+                    listenFlag = False
+                except FileNotFoundError:
+                    errortype = "FileNotFoundError"
+                    listenFlag = False
+                except Exception:
+                    errortype = "OtherError"
+                    listenFlag = False
         finally:
-            conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
-            threading.Thread(target=Bot.ircListen, args=(conn, token, user, twitchuserid, server, operators, commanddict)).start()
+            if not listenFlag:
+                Bot.logException(errortype,twitchuserid)
 
     def chatMessage(messageString, channel, server):
         x = 1
@@ -138,23 +154,13 @@ class Bot():
         else:
             server.send(bytes('PRIVMSG #'+ channel + ' :'+messageString+' \r\n', 'utf-8'))  
 
-    def logException(errortype,twitchuserid,commandrequestid=None):
+    def logException(errortype,twitchuserid):
         session = Session(engine)
+        now = datetime.now()
+        channel = Bot.getTwitchUserName(twitchuserid)
         try:
-            errortypeid = session.query(ErrorType.errortypeid).filter(ErrorType.errortypename == errortype).first()
-        except:
-            traceback.print_exc()
-        finally:
-            session.close()
-        try:
-            stmt = insert(ChannelError).values(channeltwitchuserid=twitchuserid,errortypeid=errortypeid,channelcommandrequestid=commandrequestid)
-            channelerrorid = session.execute(stmt).inserted_primary_key
-            if commandrequestid:
-                stmt = update(ChannelError).where(channelerrorid==channelerrorid).values(channelcommandrequestid=commandrequestid)
-                session.execute(stmt)
-        except:
-            session.rollback()
-            traceback.print_exc()
+            with open('errorlog.txt', 'a') as f:
+                f.write(str(now)+' | '+errortype+' | '+str(twitchuserid)+' | '+str(channel)+'\r\n')
         finally:
             session.close()
         conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
