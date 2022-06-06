@@ -141,15 +141,15 @@ class Bot():
             if ' // ' in messageString:
                 messagelist = messageString.split('//')
                 for message in messagelist:
-                    server.send(bytes('PRIVMSG #'+ channel + ' :'+message+' \r\n', 'utf-8'))
+                    server.send(bytes('PRIVMSG #'+ channel + ' :'+message.replace("//","")+' \r\n', 'utf-8'))
             
             else:
                 messagecount = len(messageString)/299
                 for x in range(0,math.ceil(messagecount)):
                     splitmsg = messageString[x*299:(x+1)*299]
-                    server.send(bytes('PRIVMSG #'+ channel + ' :'+splitmsg+' \r\n', 'utf-8'))
+                    server.send(bytes('PRIVMSG #'+ channel + ' :'+splitmsg.replace("//","")+' \r\n', 'utf-8'))
         else:
-            server.send(bytes('PRIVMSG #'+ channel + ' :'+messageString+' \r\n', 'utf-8'))  
+            server.send(bytes('PRIVMSG #'+ channel + ' :'+messageString.replace("//","")+' \r\n', 'utf-8'))  
 
     def logException(errortype,twitchuserid):
         session = Session(engine)
