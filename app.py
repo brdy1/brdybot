@@ -182,7 +182,7 @@ def getCoverage(typelist,twitchuserid=None):
     for monid,monname,maxdmg,bst in topbsts:
         message+= monname+"("+str(bst)+"), "
     message=message[0:len(message)-2]
-    print(message)
+    # print(message)
     return {'message':message,'returnid':None}
 
 @app.route("/api/v2.0/coveragecomb/<parameters>")
@@ -192,6 +192,9 @@ def coverageCombinations(parameters):
     parameters = parameters.split(" ")
     movenumber = int(parameters[0])
     types = parameters[1:]
+    if len(types) <= movenumber:
+        message = "To work effectively, the !coveragecomb command requires a number of types at least 1 greater than the given number of types to include in the combinations. Add some types or lower the number and try again."
+        return {'message':message,'returnid':None}
     typelists = list(combinations(types,movenumber))
     message = ""
     for typelist in typelists:
@@ -213,7 +216,7 @@ def getEvos(monname,one=False):
                         join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
                         filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
                         order_by(monShtein).first()
-    print(str(monid)+" "+str(monName)+" "+str(gamegroupname)+" "+str(generation))
+    # print(str(monid)+" "+str(monName)+" "+str(gamegroupname)+" "+str(generation))
     evosel = [Pokemon.pokemonname
                 ,GameGroup.gamegroupname
                 ,PokemonEvolutionInfo.evolutiontypeid
@@ -352,8 +355,8 @@ def getLearnset(monname,namesFlag=True,twitchuserid=None):
                                         join(GameGroup).\
                                         filter(Pokemon.pokemonid == monid,PokemonMove.pokemonmovelevel > 1,PokemonMove.gamegroupid == gamegroup).\
                                         order_by(PokemonMove.pokemonmovelevel).distinct().all()
-    print(str(monid)+" "+str(monName)+" "+str(gamegroup)+" "+str(generation))
-    print(pokemonMoves)
+    # print(str(monid)+" "+str(monName)+" "+str(gamegroup)+" "+str(generation))
+    # print(pokemonMoves)
     session.close()
     message = monName
     if len(pokemonMoves) > 0:
@@ -386,19 +389,21 @@ def getLevelRequirements(parameters):
     growth,startlvl,endlvl = parameters.lower().replace('-',' ').replace('m s','m-s').replace('m f','m-f').split(" ")
     startlvl = int(startlvl)
     endlvl = int(endlvl)
-    print(growth)
-    print(startlvl)
-    print(endlvl)
-    growthShtein = func.levenshtein(LevelingRate.levelingratename,growth).label("growthShtein")
-    rateid,rate = session.query(LevelingRate.levelingrateid,LevelingRate.levelingratename).order_by(growthShtein).first()
-    lvlSel = [LevelingRateLevelThreshold.levelingratelevelthresholdlevel
-                ,LevelingRateLevelThreshold.levelingratelevelthresholdexperience
-                ]
-    startlvl,startxp = session.query(*lvlSel).\
-        filter(LevelingRateLevelThreshold.levelingratelevelthresholdlevel == startlvl,LevelingRateLevelThreshold.levelingrateid == rateid).first()
-    endlvl,endxp = session.query(*lvlSel).\
-        filter(LevelingRateLevelThreshold.levelingratelevelthresholdlevel == endlvl,LevelingRateLevelThreshold.levelingrateid == rateid).first()
-    session.close()
+    # print(growth)
+    # print(startlvl)
+    # print(endlvl)
+    try:
+        growthShtein = func.levenshtein(LevelingRate.levelingratename,growth).label("growthShtein")
+        rateid,rate = session.query(LevelingRate.levelingrateid,LevelingRate.levelingratename).order_by(growthShtein).first()
+        lvlSel = [LevelingRateLevelThreshold.levelingratelevelthresholdlevel
+                    ,LevelingRateLevelThreshold.levelingratelevelthresholdexperience
+                    ]
+        startlvl,startxp = session.query(*lvlSel).\
+            filter(LevelingRateLevelThreshold.levelingratelevelthresholdlevel == startlvl,LevelingRateLevelThreshold.levelingrateid == rateid).first()
+        endlvl,endxp = session.query(*lvlSel).\
+            filter(LevelingRateLevelThreshold.levelingratelevelthresholdlevel == endlvl,LevelingRateLevelThreshold.levelingrateid == rateid).first()
+    finally:
+        session.close()
     message = rate+": Level "+str(startlvl)+"-"+str(endlvl)+" = "+str(int(float(endxp)-float(startxp)))+" xp."
     return {'message':message,'returnid':None}
 
@@ -406,11 +411,13 @@ def getLevelRequirements(parameters):
 def listOps():
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
-    operants = session.query(TwitchUser.twitchusername).\
-            select_from(ChannelOperant).\
-            join(TwitchUser,ChannelOperant.operanttwitchuserid == TwitchUser.twitchuserid).\
-            filter(ChannelOperant.channeltwitchuserid == twitchuserid).all()
-    session.close()
+    try:
+        operants = session.query(TwitchUser.twitchusername).\
+                select_from(ChannelOperant).\
+                join(TwitchUser,ChannelOperant.operanttwitchuserid == TwitchUser.twitchuserid).\
+                filter(ChannelOperant.channeltwitchuserid == twitchuserid).all()
+    finally:
+        session.close()
     message = "Users with permissions: "
     for user in operants:
         message+= user[0]+", "
@@ -422,30 +429,32 @@ def listOps():
 def getMon(monname):
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
-    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
-    monid,monName,gamegroup,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupname,GameGroup.generationid).\
-                        select_from(PokemonGameAvailability).\
-                        join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
-                        join(Game,Channel.gameid == Game.gameid).\
-                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
-                        join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
-                        join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
-                        filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
-                        order_by(monShtein).first()
-    Type1 = aliased(Type)
-    Type2 = aliased(Type)
-    monsel = [Pokemon.pokemonpokedexnumber,
-                Pokemon.pokemonname,
-                Pokemon.pokemoncapturerate,
-                LevelingRate.levelingratename
-            ]                
-    dex,name,capture,leveling = session.query(*monsel).\
-                            select_from(Pokemon).\
+    try:
+        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+        monid,monName,gamegroup,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupname,GameGroup.generationid).\
+                            select_from(PokemonGameAvailability).\
+                            join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                            join(Game,Channel.gameid == Game.gameid).\
+                            join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                            join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
                             join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
-                            join(LevelingRate,Pokemon.levelingrateid == LevelingRate.levelingrateid).\
-                            filter(Pokemon.pokemonid == monid).\
-                            first()
-    session.close()
+                            filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                            order_by(monShtein).first()
+        Type1 = aliased(Type)
+        Type2 = aliased(Type)
+        monsel = [Pokemon.pokemonpokedexnumber,
+                    Pokemon.pokemonname,
+                    Pokemon.pokemoncapturerate,
+                    LevelingRate.levelingratename
+                ]                
+        dex,name,capture,leveling = session.query(*monsel).\
+                                select_from(Pokemon).\
+                                join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                                join(LevelingRate,Pokemon.levelingrateid == LevelingRate.levelingrateid).\
+                                filter(Pokemon.pokemonid == monid).\
+                                first()
+    finally:
+        session.close()
     moveLevels = getLearnset(monName,namesFlag=False,twitchuserid=twitchuserid)
     evo = getEvos(monName,one=True)
     bst = getBST(monName)['message'].split(':')[1]
@@ -458,35 +467,37 @@ def getMon(monname):
 def getMove(movename):
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
-    gamegroupname,generation = session.query(GameGroup.gamegroupname,GameGroup.generationid).\
-                        select_from(Channel).\
-                        join(Game,Channel.gameid == Game.gameid).\
-                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
-                        filter(Channel.twitchuserid == twitchuserid).\
-                        first()
-    print(gamegroupname)
-    print(generation)
-    movesel = [Move.movename
-                ,GenerationMove.generationid
-                ,Type.typename
-                ,MoveCategory.movecategoryname
-                ,GenerationMove.movecontactflag
-                ,GenerationMove.movepp
-                ,GenerationMove.movepower
-                ,GenerationMove.moveaccuracy
-                ,GenerationMove.movepriority
-                ,GenerationMove.movedescription
-                ,Move.moveid]
-    moveShtein = func.least(func.levenshtein(Move.movename,movename),func.levenshtein(MoveNickname.movenickname,movename)).label("moveShtein")
-    movename,gen,movetype,category,contactflag,pp,power,acc,priority,description,moveid = session.query(*movesel).select_from(GenerationMove).\
-                                                                                join(Move,GenerationMove.moveid == Move.moveid).\
-                                                                                join(MoveNickname,Move.moveid == MoveNickname.moveid,isouter=True).\
-                                                                                join(MoveCategory,GenerationMove.movecategoryid == MoveCategory.movecategoryid).\
-                                                                                join(Type,GenerationMove.typeid == Type.typeid).\
-                                                                                filter(GenerationMove.generationid <= generation).\
-                                                                                order_by(moveShtein,GenerationMove.generationid.desc()).\
-                                                                                    first()
-    session.close()
+    try:
+        gamegroupname,generation = session.query(GameGroup.gamegroupname,GameGroup.generationid).\
+                            select_from(Channel).\
+                            join(Game,Channel.gameid == Game.gameid).\
+                            join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                            filter(Channel.twitchuserid == twitchuserid).\
+                            first()
+        # print(gamegroupname)
+        # print(generation)
+        movesel = [Move.movename
+                    ,GenerationMove.generationid
+                    ,Type.typename
+                    ,MoveCategory.movecategoryname
+                    ,GenerationMove.movecontactflag
+                    ,GenerationMove.movepp
+                    ,GenerationMove.movepower
+                    ,GenerationMove.moveaccuracy
+                    ,GenerationMove.movepriority
+                    ,GenerationMove.movedescription
+                    ,Move.moveid]
+        moveShtein = func.least(func.levenshtein(Move.movename,movename),func.levenshtein(MoveNickname.movenickname,movename)).label("moveShtein")
+        movename,gen,movetype,category,contactflag,pp,power,acc,priority,description,moveid = session.query(*movesel).select_from(GenerationMove).\
+                                                                                    join(Move,GenerationMove.moveid == Move.moveid).\
+                                                                                    join(MoveNickname,Move.moveid == MoveNickname.moveid,isouter=True).\
+                                                                                    join(MoveCategory,GenerationMove.movecategoryid == MoveCategory.movecategoryid).\
+                                                                                    join(Type,GenerationMove.typeid == Type.typeid).\
+                                                                                    filter(GenerationMove.generationid <= generation).\
+                                                                                    order_by(moveShtein,GenerationMove.generationid.desc()).\
+                                                                                        first()
+    finally:
+        session.close()
     if contactflag == True:
         contact = "Contact"
     else:
@@ -504,13 +515,15 @@ def getMove(movename):
 def getNature(naturename):
     session = Session(engine)
     raisedStat,loweredStat = aliased(Stat),aliased(Stat)
-    natureShtein = func.levenshtein(Nature.naturename,naturename).label("natureShtein")
-    naturename,neutralflag,raisedstat,loweredstat,natureid = session.query(Nature.naturename,Nature.neutralnatureflag,raisedStat.statname,loweredStat.statname,Nature.natureid).\
-                        select_from(Nature).\
-                        join(raisedStat,Nature.raisedstatid == raisedStat.statid,isouter=True).\
-                        join(loweredStat,Nature.loweredstatid == loweredStat.statid,isouter=True).\
-                        order_by(natureShtein).first()
-    session.close()
+    try:
+        natureShtein = func.levenshtein(Nature.naturename,naturename).label("natureShtein")
+        naturename,neutralflag,raisedstat,loweredstat,natureid = session.query(Nature.naturename,Nature.neutralnatureflag,raisedStat.statname,loweredStat.statname,Nature.natureid).\
+                            select_from(Nature).\
+                            join(raisedStat,Nature.raisedstatid == raisedStat.statid,isouter=True).\
+                            join(loweredStat,Nature.loweredstatid == loweredStat.statid,isouter=True).\
+                            order_by(natureShtein).first()
+    finally:
+        session.close()
     if neutralflag == True:
         message = naturename+" is a neutral nature."
     elif neutralflag == False:
@@ -521,9 +534,11 @@ def getNature(naturename):
 @app.route("/api/v2.0/pokecom/")
 def getCommands():
     session = Session(engine)
-    commands = session.query(Command.commandname).filter(Command.commandname != 'join').order_by(Command.commandname).all()
+    try:
+        commands = session.query(Command.commandname).filter(Command.commandname != 'join').order_by(Command.commandname).all()
+    finally:
+            session.close()
     message = "Available commands: "
-    session.close()
     for command in commands:
         message+= command[0]+", "
     message = message[0:len(command)-3]
@@ -554,7 +569,7 @@ def insertOperant(operantlist):
         return {'message':"This command requires at least one username to add to the user list.",'returnid':None}
     session = Session(engine)
     channeltwitchuserid = int(request.args.get("twitchuserid"))
-    print(channeltwitchuserid)
+    # print(channeltwitchuserid)
     newchannelperants = []
     newtwitchusers = []
     for operant in operantlist:
@@ -626,7 +641,7 @@ def getTwitchID(username):
     response = requests.get(url,headers=headers)
     response.json()['data'][0]['id']
     userid = response.json()['data'][0]['id']
-    print(userid)
+    # print(userid)
     return userid
 
 @app.route("/api/v2.0/type/<monname>")
@@ -634,7 +649,8 @@ def getTypes(monname):
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
     monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
-    monid,monName,gamegroup,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupname,GameGroup.generationid).\
+    try:
+        monid,monName,gamegroup,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupname,GameGroup.generationid).\
                         select_from(PokemonGameAvailability).\
                         join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
                         join(Game,Channel.gameid == Game.gameid).\
@@ -643,8 +659,6 @@ def getTypes(monname):
                         join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
                         filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
                         order_by(monShtein).first()
-    try:
-
         type1name = session.query(Type.typename).\
                     select_from(PokemonType).\
                     join(Type).\
@@ -688,10 +702,6 @@ def getWeaknesses(monname):
         session.rollback()
     finally:
         session.close()
-    # weakSel = [     AttackingTypeEffectivenessByPokemon.dmgmodifier,
-    #                 AttackingTypeEffectivenessByPokemon.type1name,
-    #                 AttackingTypeEffectivenessByPokemon.type2name,
-    #                 AttackingTypeEffectivenessByPokemon.generation]
     try:
         type1id,type1name = session.query(Type.typeid,Type.typename).\
                     select_from(PokemonType).\
@@ -728,20 +738,6 @@ def getWeaknesses(monname):
         modifiersfinal = session.query(modifiers.c.dmgmodifier,func.string_agg(attackingType.typename,aggregate_order_by((", "),attackingType.typename))).\
                 join(attackingType,modifiers.c.typeid == attackingType.typeid).\
                 group_by(modifiers.c.dmgmodifier).all()
-        # modifiers = session.query(*weakSel).select_from(AttackingTypeEffectivenessByPokemon).\
-        #             join(Pokemon,AttackingTypeEffectivenessByPokemon.pokemonid == Pokemon.pokemonid).\
-        #             join(Type,AttackingTypeEffectivenessByPokemon.attackingtypeid == Type.typeid).\
-        #             filter(Pokemon.pokemonid == monid,AttackingTypeEffectivenessByPokemon.generation == generation).\
-        #             group_by(Pokemon.pokemonname,
-        #             AttackingTypeEffectivenessByPokemon.dmgmodifier,
-        #             AttackingTypeEffectivenessByPokemon.type1name,
-        #             AttackingTypeEffectivenessByPokemon.type2name,
-        #             AttackingTypeEffectivenessByPokemon.generation).\
-        #             order_by(Pokemon.pokemonname,
-        #             AttackingTypeEffectivenessByPokemon.dmgmodifier.asc(),
-        #             AttackingTypeEffectivenessByPokemon.type1name,
-        #             AttackingTypeEffectivenessByPokemon.type2name,
-        #             AttackingTypeEffectivenessByPokemon.generation).all()
     except:
         traceback.print_exc()
         session.rollback()
