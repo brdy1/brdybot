@@ -41,7 +41,7 @@ def main():
     #twitchusers = Setup.getTwitchIDs()
     commanddict = Setup.getCommandDict()
     twitchusers = Setup.getChannels()
-    #Setup.updateTwitchNames(twitchusers)
+    Setup.updateTwitchNames(twitchusers)
     #twitchusers = Setup.getTwitchIDs()
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
@@ -79,8 +79,8 @@ class Bot():
                             print(responsesplit)
                         for requestername, userMessage in map(lambda x: x.groups(), pattern.finditer(response)):
                             try:
-                                command = userMessage.split(" ")[0].lower().replace("'","''").strip()
-                                parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")[1:]
+                                command = userMessage.replace("'","''").split(" ")[0].lower().strip()
+                                parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").replace("'","''").strip().split(" ")[1:]
                                 permissions = (requestername in operators.values()) or (requestername == channel) or (channel == 'brdybot') or (command == "botinfo")
                                 if (command in list(commandDict.keys())) and (permissions or requestername == 'brdy'):
                                     print(command)
