@@ -86,7 +86,7 @@ def getBST(monname):
     try:
         session = Session(engine)
         twitchuserid = int(request.args.get("twitchuserid"))
-        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
         monid,monName,gamegroupname,gen = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupabbreviation,GameGroup.generationid).\
                         select_from(PokemonGameAvailability).\
                         join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
@@ -206,7 +206,7 @@ def coverageCombinations(parameters):
 def getEvos(monname,one=False):
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
-    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
     monid,monName,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupabbreviation,GameGroup.generationid).\
                         select_from(PokemonGameAvailability).\
                         join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
@@ -338,7 +338,7 @@ def getLearnset(monname,namesFlag=True,twitchuserid=None):
     session = Session(engine)
     if not twitchuserid:
         twitchuserid = int(request.args.get("twitchuserid"))
-    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
     monid,monName,gamegroup,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.generationid).\
                         select_from(PokemonGameAvailability).\
                         join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
@@ -430,7 +430,7 @@ def getMon(monname):
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
     try:
-        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
         monid,monName,gamegroup,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupname,GameGroup.generationid).\
                             select_from(PokemonGameAvailability).\
                             join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
@@ -648,7 +648,7 @@ def getTwitchID(username):
 def getTypes(monname):
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
-    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
     try:
         monid,monName,gamegroup,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupname,GameGroup.generationid).\
                         select_from(PokemonGameAvailability).\
@@ -687,7 +687,7 @@ def getWeaknesses(monname):
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
     try:
-        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
         monid,monName,gamegroup,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupname,GameGroup.generationid).\
                         select_from(PokemonGameAvailability).\
                         join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
@@ -771,7 +771,7 @@ def getXP(parameters):
     session.close()
     session = Session(engine)
     try:
-        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
         monid,monName,gamegroup,gamegroupabbr,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupabbreviation,GameGroup.generationid).\
                         select_from(PokemonGameAvailability).\
                         join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
