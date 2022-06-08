@@ -487,7 +487,7 @@ def getMove(movename):
                     ,GenerationMove.movepriority
                     ,GenerationMove.movedescription
                     ,Move.moveid]
-        moveShtein = func.least(func.levenshtein(Move.movename,movename),func.levenshtein(MoveNickname.movenickname,movename)).label("moveShtein")
+        moveShtein = func.least(func.levenshtein(Move.movename,movename.title()),func.levenshtein(MoveNickname.movenickname,movename.title())).label("moveShtein")
         movename,gen,movetype,category,contactflag,pp,power,acc,priority,description,moveid = session.query(*movesel).select_from(GenerationMove).\
                                                                                     join(Move,GenerationMove.moveid == Move.moveid).\
                                                                                     join(MoveNickname,Move.moveid == MoveNickname.moveid,isouter=True).\
