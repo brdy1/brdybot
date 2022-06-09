@@ -5,7 +5,7 @@ The bot uses a PostgreSQL database with data scraped and taken from [Serebii.net
 
 The IRC listener (chatbot) joins your channel, listens for and sends commands to the API to fetch data from the database, and prints the information gathered from the database in a channel message.
 
- ![image](screens/datadiagram.png)
+ ![image](screens/datadiagram.svg)
 
 # Bot
 The bot has the following commands available:
