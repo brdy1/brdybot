@@ -271,7 +271,7 @@ class ChannelCommandRequest(Base):
     abilityid = Column('abilityid',Integer)
     pokemonid = Column('pokemonid',Integer)
     natureid = Column('natureid',Integer)
-    nmoveid = Column('moveid',Integer)
+    moveid = Column('moveid',Integer)
     gameid = Column('gameid',Integer)
     commandselectid = Column('commandselectid',Integer)
     channelcommandrequesttime = Column('channelcommandrequesttime',DateTime)
