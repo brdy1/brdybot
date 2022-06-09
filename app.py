@@ -122,7 +122,7 @@ def getCoverage(typelist,twitchuserid=None):
             first()
         for typename in typelist:
             typeindex = typelist.index(typename)
-            typeShtein = func.levenshtein(Type.typename,typename)
+            typeShtein = func.levenshtein(Type.typename,typename.title())
             typename = session.query(Type.typename).filter(Type.generationid <= generation).order_by(typeShtein).first()[0]
             typelist[typeindex] = typename
         validmons = session.query(Pokemon.pokemonid).\
