@@ -27,6 +27,7 @@ The bot has the following commands available:
 ![image](screens/learnsetshort.PNG)	|	learnsetshort	|	User sends the name of a pokemon as a parameter, and the bot returns a list of levels at which it learns moves in the currently selected game.	|	pokemon	|	1	|		|
 ![image](screens/level.PNG)	|	level	|	User sends three (3) parameters - the name of a growth rate (either Erratic, Fast, Medium Fast, Medium Slow, Slow, Fluctuating), a starting level, and an ending level. The bot will return the total required experience to go from the starting level to the ending level.	|	levelingrate	|	3	|	3	|
 ![image](screens/listops.PNG)	|	listops	|	Lists all operants for the current channel.	|	bot	|	0	|	0	|
+![image](screens/learnsetshort.PNG)	|	mon	|	Alias for !learnsetshort: User sends the name of a pokemon as a parameter, and the bot returns a list of levels at which it learns moves in the currently selected game.	|	pokemon	|	1	|		|
 ![image](screens/mon.PNG)	|	mon	|	User sends a Pokemon name as a parameter, and the bot returns summary information about it to the chat.	|	pokemon	|	1	|		|
 ![image](screens/move.PNG)	|	move	|	User sends a move name as a parameter, and the bot returns information about it to the chat.	|	move	|	1	|		|
 ![image](screens/nature.PNG)	|	nature	|	User sends a nature name as a parameter, and the bot returns the affected attributes to the chat.	|	nature	|	1	|		|
