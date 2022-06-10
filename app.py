@@ -395,7 +395,7 @@ def getLearnset(monname,namesFlag=True,twitchuserid=None):
     # print(message)
     return {'message':message,'returnid':monid}
 
-@app.route("/api/v2.0/learnsetshort/<monname>")
+@app.route("/api/v2.0/lss/<monname>")
 @app.route("/api/v2.0/learnsetshort/<monname>")
 def getLearnsetShort(monname):
     twitchuserid = int(request.args.get("twitchuserid"))
