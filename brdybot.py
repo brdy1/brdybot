@@ -41,7 +41,7 @@ def main():
     #twitchusers = Setup.getTwitchIDs()
     commanddict = Setup.getCommandDict()
     twitchusers = Setup.getChannels()
-    Setup.updateTwitchNames(twitchusers)
+    #Setup.updateTwitchNames(twitchusers)
     #twitchusers = Setup.getTwitchIDs()
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
@@ -64,7 +64,7 @@ class Bot():
             server.send(bytes('JOIN #' + channel + '\r\n', 'utf-8'))
             #listening loop
             print("Starting bot in channel " +channel + " with operants: "+str(operators))
-            pattern = re.compile(r'^:[a-zA-Z0-9]{3,25}![a-zA-Z0-9]{3,25}@([a-zA-Z0-9]{3,25})\.tmi\.twitch\.tv\s+PRIVMSG\s+#[a-zA-Z0-9]{3,25}\s+:(.*?)$', re.M)
+            pattern = re.compile(r'^:[a-zA-Z0-9]{3,25}![a-zA-Z0-9]{3,25}@([a-zA-Z0-9]{3,25})\.tmi\.twitch\.tv\s+PRIVMSG\s+#[a-zA-Z0-9]{3,25}\s+:!(.*?)$', re.M)
             while listenFlag:
                 try:
                     message = None
@@ -74,12 +74,14 @@ class Bot():
                     if "PING" in str(response):
                         server.send(bytes('PONG :tmi.twitch.tv\r\n', 'utf-8'))
                     elif ":!" in str(response):
-                        responsesplit = str(response).split(":!")
-                        if channel == 'brdy':
-                            print(responsesplit)
+                        # responsesplit = str(response).split(":!")
+                        # if channel == 'brdy':
+                        #     print(responsesplit)
                         for requestername, userMessage in map(lambda x: x.groups(), pattern.finditer(response)):
                             try:
                                 userMessage = re.sub(' +',' ',userMessage)
+                                print(requestername)
+                                print(userMessage)
                                 command = userMessage.replace("'","''").split(" ")[0].lower().strip()
                                 parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").replace("'","''").strip().split(" ")[1:]
                                 permissions = (requestername in operators.values()) or (requestername == channel) or (channel == 'brdybot') or (command == "botinfo")
