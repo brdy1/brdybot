@@ -161,7 +161,7 @@ def getCoverage(typelist,twitchuserid=None):
         #                        else_=func.max(tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1)
         # )
         # )
-        attackingdmg = session.query(montypes.c.pokemonid,montypes.c.type1id,montypes.c.type2id,func.max(tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1).label('dmgmod')).\
+        attackingdmg = session.query(montypes.c.pokemonid,montypes.c.type1id,montypes.c.type2id,func.max(tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1)).label('dmgmod')).\
             select_from(montypes).\
             join(validmons,(montypes.c.pokemonid == validmons.c.pokemonid) & (montypes.c.generationid == validmons.c.gen)).\
             join(tm1,(montypes.c.type1id == tm1.defendingtypeid) & (tm1.generationid == montypes.c.generationid)).\
