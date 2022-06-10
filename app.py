@@ -155,8 +155,8 @@ def getCoverage(typelist,twitchuserid=None):
         tm2 = aliased(TypeMatchup)
         shedinjaOverride = case(
                                (
-                                    func.max((montypes.c.pokemonid == 343) & (tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1) < 2),
-                                    literal_column("0.00"))
+                                    (montypes.c.pokemonid == 343) & (tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1) < 2),
+                                    func.max(literal_column("0.00"))
                                ),
                                else_=func.max(tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1)
         )
