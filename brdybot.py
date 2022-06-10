@@ -47,7 +47,7 @@ def main():
         twitchuserid = twitchuserid[0]
         operators = Setup.getOperants(twitchuserid)
         #create a listening thread
-        print("create listening thread")
+        # print("create listening thread")
         threading.Thread(target=Bot.ircListen, args=(conn, token, user, twitchuserid, server, operators, commanddict)).start()
         sleep(2.2)
 
@@ -63,7 +63,7 @@ class Bot():
             server.send(bytes('NICK ' + botName + '\r\n', 'utf-8'))
             server.send(bytes('JOIN #' + channel + '\r\n', 'utf-8'))
             #listening loop
-            print("Starting bot in channel " +channel + " with operants: "+str(operators))
+            # print("Starting bot in channel " +channel + " with operants: "+str(operators))
             pattern = re.compile(r'^:[a-zA-Z0-9]{3,25}![a-zA-Z0-9]{3,25}@([a-zA-Z0-9]{3,25})\.tmi\.twitch\.tv\s+PRIVMSG\s+#[a-zA-Z0-9]{3,25}\s+:!(.*?)$', re.M)
             while listenFlag:
                 try:
@@ -361,7 +361,7 @@ class Setup():
                                     'type':commandtype,
                                     'minimum':commandmin,
                                     'maximum':commandmax}
-        print(commanddict)
+        # print(commanddict)
         return commanddict
 
     def getOperants(twitchuserid):
@@ -369,7 +369,7 @@ class Setup():
         session = Session(engine)
         ChannelTwitch = aliased(TwitchUser)
         OperantTwitch = aliased(TwitchUser)
-        print(twitchuserid)
+        # print(twitchuserid)
         try:
             channelusers = session.query(ChannelTwitch.twitchusername,OperantTwitch.twitchusername,OperantTwitch.twitchuserid).\
                             select_from(ChannelOperant).\
@@ -381,12 +381,12 @@ class Setup():
             traceback.print_exc()
         finally:
             session.close()
-        print(channelusers)
+        # print(channelusers)
         twitchusername = Bot.getTwitchUserName(twitchuserid)
         operantdict = {twitchuserid:twitchusername}
         for channelname,username,userid in channelusers:
             operantdict[userid] = username
-        print(operantdict)
+        # print(operantdict)
         return operantdict
 
     def getChannels():
@@ -410,7 +410,7 @@ class Setup():
             traceback.print_exc()
         finally:
             session.close()
-        Setup.updateTwitchNames(twitchids)
+        # Setup.updateTwitchNames(twitchids)
         return twitchids
 
     def updateTwitchNames(twitchids):
