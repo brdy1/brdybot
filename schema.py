@@ -340,29 +340,6 @@ class TwitchUser(Base):
     twitchuserid = Column("twitchuserid",Integer,primary_key=True)
     twitchusername = Column("twitchusername",String(100))
 
-##### WAREHOUSE SCHEMA
-
-class PokemonTypesByGeneration(Base):
-    __tablename__ = 'pokemontypesbygeneration'
-    pokemontypesbygenerationid = Column("pokemontypesbygenerationid",Integer,primary_key = True)
-    pokemonid = Column("pokemonid",Integer,ForeignKey("pokemon.pokemonid"))
-    generationid = Column("generationid",Integer,ForeignKey("generation.generationid"))
-    type1id = Column("type1id",Integer,ForeignKey("type.typeid"))
-    type2id = Column("type2id",Integer)
-
-class AttackingTypeEffectivenessByPokemon(Base):
-    __tablename__ = 'attackingtypeeffectivenessbypokemon'
-    attackingtypedamagemodifierbypokemonandgeneration_key = Column("attackingtypedamagemodifierbypokemonandgeneration_key",String(100),primary_key = True)
-    pokedexnumber = Column("pokedexnumber",Integer)
-    pokemonid = Column("pokemonid",Integer,ForeignKey("pokemon.pokemonid"))
-    pokemonname = Column("pokemonname",String(50))
-    type1name = Column("type1name",String(50))
-    type2name = Column("type2name",String(50))
-    generation = Column("generation",Integer,ForeignKey("generation.generationid"))
-    attackingtypeid = Column("attackingtypeid",Integer,ForeignKey("type.typeid"))
-    attackingtypename = Column("attackingtypename",String(50))
-    dmgmodifier = Column("dmgmodifier",DECIMAL)
-
 Base.metadata.create_all(engine)
 
 #################################################

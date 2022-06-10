@@ -130,7 +130,6 @@ def getCoverage(typelist,twitchuserid=None):
             typeid,typename = session.query(Type.typeid,Type.typename).filter(Type.generationid <= generation).order_by(typeShtein).first()
             typeids.append(typeid)
             typelist[typeindex] = typename
-        ####
         validSel = [
             PokemonStat.pokemonid
             ,func.max(PokemonStat.generationid).label('gen')
@@ -167,40 +166,6 @@ def getCoverage(typelist,twitchuserid=None):
             join(monbsts,attackingdmg.c.pokemonid == monbsts.c.pokemonid).\
             join(Pokemon,attackingdmg.c.pokemonid == Pokemon.pokemonid).\
             order_by(attackingdmg.c.dmgmod.asc(),monbsts.c.bst.desc()).all()
-
-        # ####
-
-        # validmons = session.query(Pokemon.pokemonid).\
-        #     select_from(PokemonGameAvailability).\
-        #     join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
-        #     filter(PokemonGameAvailability.gameid == gameid,PokemonGameAvailability.pokemonavailabilitytypeid != 18)
-        # dmgeffect = session.query(AttackingTypeEffectivenessByPokemon.pokemonid.label('monid'),AttackingTypeEffectivenessByPokemon.generation.label('gen'),func.max(AttackingTypeEffectivenessByPokemon.dmgmodifier).label('dmgmod')).\
-        #     select_from(AttackingTypeEffectivenessByPokemon).\
-        #     filter(AttackingTypeEffectivenessByPokemon.generation == generation,AttackingTypeEffectivenessByPokemon.attackingtypename.in_(typelist),AttackingTypeEffectivenessByPokemon.pokemonid.in_(validmons)).\
-        #     group_by(AttackingTypeEffectivenessByPokemon.pokemonid,AttackingTypeEffectivenessByPokemon.generation).\
-        #     subquery()
-        # ps = session.query(PokemonStat.pokemonid,func.max(PokemonStat.generationid).label('maxgen')).\
-        #         filter(PokemonStat.generationid <= generation,PokemonStat.pokemonid.in_(validmons)).\
-        #         group_by(PokemonStat.pokemonid).\
-        #         subquery()
-        # subdmg = session.query(dmgeffect.c.monid,Pokemon.pokemonname,dmgeffect.c.dmgmod,dmgeffect.c.gen).\
-        #     select_from(dmgeffect).\
-        #     join(Pokemon,dmgeffect.c.monid == Pokemon.pokemonid).\
-        #     order_by(dmgeffect.c.dmgmod.asc(),Pokemon.pokemonname)
-        # dmgcounts = subdmg.subquery()
-        # coveragecounts = session.query(dmgcounts.c.dmgmod,func.count(dmgcounts.c.monid)).\
-        #     group_by(dmgcounts.c.dmgmod).\
-        #     order_by(dmgcounts.c.dmgmod.asc()).\
-        #     all()
-        # topbsts = session.query(dmgcounts.c.monid,dmgcounts.c.pokemonname,dmgcounts.c.dmgmod,func.sum(PokemonStat.pokemonstatvalue).label('bst')).\
-        #             select_from(dmgcounts).\
-        #             join(ps,dmgcounts.c.monid == ps.c.pokemonid).\
-        #             join(PokemonStat,(ps.c.pokemonid == PokemonStat.pokemonid) & (ps.c.maxgen == PokemonStat.generationid)).\
-        #             filter(dmgcounts.c.gen == generation).\
-        #             group_by(dmgcounts.c.monid,dmgcounts.c.pokemonname,dmgcounts.c.dmgmod).\
-        #             order_by(dmgcounts.c.dmgmod.asc(),func.sum(PokemonStat.pokemonstatvalue).desc(),dmgcounts.c.pokemonname).\
-        #             all()
-        ####
     except:
         session.rollback()
         traceback.print_exc()
@@ -422,6 +387,7 @@ def getLearnset(monname,namesFlag=True,twitchuserid=None):
     # print(message)
     return {'message':message,'returnid':monid}
 
+@app.route("/api/v2.0/learnsetshort/<monname>")
 @app.route("/api/v2.0/learnsetshort/<monname>")
 def getLearnsetShort(monname):
     twitchuserid = int(request.args.get("twitchuserid"))
