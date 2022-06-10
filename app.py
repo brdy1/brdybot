@@ -153,7 +153,15 @@ def getCoverage(typelist,twitchuserid=None):
             group_by(PokemonStat.pokemonid).subquery()
         tm1 = aliased(TypeMatchup)            
         tm2 = aliased(TypeMatchup)
-        attackingdmg = session.query(montypes.c.pokemonid,montypes.c.type1id,montypes.c.type2id,func.max(tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1)).label('dmgmod')).\
+        shedinjaOverride = case(
+                               (
+                                    ((montypes.c.pokemonid == 343) & (tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1) < 2)),
+                                    func.max(literal_column("0.00"))
+                               ),
+                               else_=func.max(tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1)
+        )
+        )
+        attackingdmg = session.query(montypes.c.pokemonid,montypes.c.type1id,montypes.c.type2id,shedinjaOverride.label('dmgmod')).\
             select_from(montypes).\
             join(validmons,(montypes.c.pokemonid == validmons.c.pokemonid) & (montypes.c.generationid == validmons.c.gen)).\
             join(tm1,(montypes.c.type1id == tm1.defendingtypeid) & (tm1.generationid == montypes.c.generationid)).\
