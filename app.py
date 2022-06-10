@@ -167,7 +167,7 @@ def getCoverage(typelist,twitchuserid=None):
             join(tm1,(montypes.c.type1id == tm1.defendingtypeid) & (tm1.generationid == montypes.c.generationid)).\
             join(tm2,(montypes.c.type2id == tm2.defendingtypeid) & (tm2.generationid == montypes.c.generationid) & (tm1.attackingtypeid == tm2.attackingtypeid),isouter=True).\
             filter(tm1.attackingtypeid.in_(typeids)).\
-            group_by(montypes.c.pokemonid,montypes.c.type1id,montypes.c.type2id,shedinjaOverride).subquery()
+            group_by(montypes.c.pokemonid,montypes.c.type1id,montypes.c.type2id).subquery()
         coveragecounts = session.query(attackingdmg.c.dmgmod,func.count(attackingdmg.c.pokemonid)).\
             group_by(attackingdmg.c.dmgmod).order_by(attackingdmg.c.dmgmod).all()
         topbsts = session.query(attackingdmg.c.dmgmod,monbsts.c.bst,Pokemon.pokemonname).select_from(attackingdmg).\
