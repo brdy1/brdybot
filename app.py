@@ -120,41 +120,87 @@ def getCoverage(typelist,twitchuserid=None):
             join(GameGroup).\
             filter(Channel.twitchuserid == twitchuserid).\
             first()
+        typeids = []
         for typename in typelist:
             typeindex = typelist.index(typename)
             typeShtein = func.levenshtein(Type.typename,typename.title())
             typename = session.query(Type.typename).filter(Type.generationid <= generation).order_by(typeShtein).first()[0]
+
+            typeShtein = func.levenshtein(Type.typename,typename)
+            typeid,typename = session.query(Type.typeid,Type.typename).filter(Type.generationid <= generation).order_by(typeShtein).first()
+            typeids.append(typeid)
             typelist[typeindex] = typename
-        validmons = session.query(Pokemon.pokemonid).\
-            select_from(PokemonGameAvailability).\
-            join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+        ####
+        validSel = [
+            PokemonStat.pokemonid
+            ,func.max(PokemonStat.generationid).label('gen')
+        ]
+        validated = session.query(Pokemon.pokemonid).\
+            join(PokemonGameAvailability,Pokemon.pokemonid == PokemonGameAvailability.pokemonid).\
             filter(PokemonGameAvailability.gameid == gameid,PokemonGameAvailability.pokemonavailabilitytypeid != 18)
-        dmgeffect = session.query(AttackingTypeEffectivenessByPokemon.pokemonid.label('monid'),AttackingTypeEffectivenessByPokemon.generation.label('gen'),func.max(AttackingTypeEffectivenessByPokemon.dmgmodifier).label('dmgmod')).\
-            select_from(AttackingTypeEffectivenessByPokemon).\
-            filter(AttackingTypeEffectivenessByPokemon.generation == generation,AttackingTypeEffectivenessByPokemon.attackingtypename.in_(typelist),AttackingTypeEffectivenessByPokemon.pokemonid.in_(validmons)).\
-            group_by(AttackingTypeEffectivenessByPokemon.pokemonid,AttackingTypeEffectivenessByPokemon.generation).\
-            subquery()
-        ps = session.query(PokemonStat.pokemonid,func.max(PokemonStat.generationid).label('maxgen')).\
-                filter(PokemonStat.generationid <= generation,PokemonStat.pokemonid.in_(validmons)).\
-                group_by(PokemonStat.pokemonid).\
-                subquery()
-        subdmg = session.query(dmgeffect.c.monid,Pokemon.pokemonname,dmgeffect.c.dmgmod,dmgeffect.c.gen).\
-            select_from(dmgeffect).\
-            join(Pokemon,dmgeffect.c.monid == Pokemon.pokemonid).\
-            order_by(dmgeffect.c.dmgmod.asc(),Pokemon.pokemonname)
-        dmgcounts = subdmg.subquery()
-        coveragecounts = session.query(dmgcounts.c.dmgmod,func.count(dmgcounts.c.monid)).\
-            group_by(dmgcounts.c.dmgmod).\
-            order_by(dmgcounts.c.dmgmod.asc()).\
-            all()
-        topbsts = session.query(dmgcounts.c.monid,dmgcounts.c.pokemonname,dmgcounts.c.dmgmod,func.sum(PokemonStat.pokemonstatvalue).label('bst')).\
-                    select_from(dmgcounts).\
-                    join(ps,dmgcounts.c.monid == ps.c.pokemonid).\
-                    join(PokemonStat,(ps.c.pokemonid == PokemonStat.pokemonid) & (ps.c.maxgen == PokemonStat.generationid)).\
-                    filter(dmgcounts.c.gen == generation).\
-                    group_by(dmgcounts.c.monid,dmgcounts.c.pokemonname,dmgcounts.c.dmgmod).\
-                    order_by(dmgcounts.c.dmgmod.asc(),func.sum(PokemonStat.pokemonstatvalue).desc(),dmgcounts.c.pokemonname).\
-                    all()
+        print(validated)
+        validmons = session.query(*validSel).\
+            filter(PokemonStat.pokemonid.in_(validated),PokemonStat.generationid <= generation).\
+                group_by(PokemonStat.pokemonid).subquery()
+        type1 = session.query(PokemonType.generationid,PokemonType.pokemonid,PokemonType.typeid).\
+            filter(PokemonType.pokemontypeorder == 1).subquery()
+        type2 = session.query(PokemonType.generationid,PokemonType.pokemonid,PokemonType.typeid).\
+            filter(PokemonType.pokemontypeorder == 2).subquery()
+        montypes = session.query(Pokemon.pokemonid,type1.c.generationid,type1.c.typeid.label('type1id'),type2.c.typeid.label('type2id')).\
+            select_from(Pokemon).join(validmons,Pokemon.pokemonid == validmons.c.pokemonid).\
+                join(type1,Pokemon.pokemonid == type1.c.pokemonid).\
+                join(type2,(Pokemon.pokemonid == type2.c.pokemonid) & (type1.c.generationid == type2.c.generationid),isouter=True).subquery()
+        monbsts = session.query(PokemonStat.pokemonid,func.sum(PokemonStat.pokemonstatvalue).label('bst')).join(validmons,(PokemonStat.pokemonid == validmons.c.pokemonid) & (PokemonStat.generationid == validmons.c.gen)).\
+            group_by(PokemonStat.pokemonid).subquery()
+        tm1 = aliased(TypeMatchup)            
+        tm2 = aliased(TypeMatchup)
+        attackingdmg = session.query(montypes.c.pokemonid,montypes.c.type1id,montypes.c.type2id,func.max(tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1)).label('dmgmod')).\
+            select_from(montypes).\
+            join(validmons,(montypes.c.pokemonid == validmons.c.pokemonid) & (montypes.c.generationid == validmons.c.gen)).\
+            join(tm1,(montypes.c.type1id == tm1.defendingtypeid) & (tm1.generationid == montypes.c.generationid)).\
+            join(tm2,(montypes.c.type2id == tm2.defendingtypeid) & (tm2.generationid == montypes.c.generationid) & (tm1.attackingtypeid == tm2.attackingtypeid),isouter=True).\
+            filter(tm1.attackingtypeid.in_(typeids)).\
+            group_by(montypes.c.pokemonid,montypes.c.type1id,montypes.c.type2id).subquery()
+        coveragecounts = session.query(attackingdmg.c.dmgmod,func.count(attackingdmg.c.pokemonid)).\
+            group_by(attackingdmg.c.dmgmod).order_by(attackingdmg.c.dmgmod).all()
+        topbsts = session.query(attackingdmg.c.dmgmod,monbsts.c.bst,Pokemon.pokemonname).select_from(attackingdmg).\
+            join(monbsts,attackingdmg.c.pokemonid == monbsts.c.pokemonid).\
+            join(Pokemon,attackingdmg.c.pokemonid == Pokemon.pokemonid).\
+            order_by(attackingdmg.c.dmgmod.asc(),monbsts.c.bst.desc()).all()
+
+        # ####
+
+        # validmons = session.query(Pokemon.pokemonid).\
+        #     select_from(PokemonGameAvailability).\
+        #     join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+        #     filter(PokemonGameAvailability.gameid == gameid,PokemonGameAvailability.pokemonavailabilitytypeid != 18)
+        # dmgeffect = session.query(AttackingTypeEffectivenessByPokemon.pokemonid.label('monid'),AttackingTypeEffectivenessByPokemon.generation.label('gen'),func.max(AttackingTypeEffectivenessByPokemon.dmgmodifier).label('dmgmod')).\
+        #     select_from(AttackingTypeEffectivenessByPokemon).\
+        #     filter(AttackingTypeEffectivenessByPokemon.generation == generation,AttackingTypeEffectivenessByPokemon.attackingtypename.in_(typelist),AttackingTypeEffectivenessByPokemon.pokemonid.in_(validmons)).\
+        #     group_by(AttackingTypeEffectivenessByPokemon.pokemonid,AttackingTypeEffectivenessByPokemon.generation).\
+        #     subquery()
+        # ps = session.query(PokemonStat.pokemonid,func.max(PokemonStat.generationid).label('maxgen')).\
+        #         filter(PokemonStat.generationid <= generation,PokemonStat.pokemonid.in_(validmons)).\
+        #         group_by(PokemonStat.pokemonid).\
+        #         subquery()
+        # subdmg = session.query(dmgeffect.c.monid,Pokemon.pokemonname,dmgeffect.c.dmgmod,dmgeffect.c.gen).\
+        #     select_from(dmgeffect).\
+        #     join(Pokemon,dmgeffect.c.monid == Pokemon.pokemonid).\
+        #     order_by(dmgeffect.c.dmgmod.asc(),Pokemon.pokemonname)
+        # dmgcounts = subdmg.subquery()
+        # coveragecounts = session.query(dmgcounts.c.dmgmod,func.count(dmgcounts.c.monid)).\
+        #     group_by(dmgcounts.c.dmgmod).\
+        #     order_by(dmgcounts.c.dmgmod.asc()).\
+        #     all()
+        # topbsts = session.query(dmgcounts.c.monid,dmgcounts.c.pokemonname,dmgcounts.c.dmgmod,func.sum(PokemonStat.pokemonstatvalue).label('bst')).\
+        #             select_from(dmgcounts).\
+        #             join(ps,dmgcounts.c.monid == ps.c.pokemonid).\
+        #             join(PokemonStat,(ps.c.pokemonid == PokemonStat.pokemonid) & (ps.c.maxgen == PokemonStat.generationid)).\
+        #             filter(dmgcounts.c.gen == generation).\
+        #             group_by(dmgcounts.c.monid,dmgcounts.c.pokemonname,dmgcounts.c.dmgmod).\
+        #             order_by(dmgcounts.c.dmgmod.asc(),func.sum(PokemonStat.pokemonstatvalue).desc(),dmgcounts.c.pokemonname).\
+        #             all()
+        ####
     except:
         session.rollback()
         traceback.print_exc()
@@ -179,7 +225,7 @@ def getCoverage(typelist,twitchuserid=None):
     else:
         message+= " -- Top 5 Threats: "
         topbsts = topbsts[0:5]
-    for monid,monname,maxdmg,bst in topbsts:
+    for maxdmg,bst,monname in topbsts:
         message+= monname+"("+str(bst)+"), "
     message=message[0:len(message)-2]
     # print(message)
