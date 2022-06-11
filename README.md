@@ -1,5 +1,5 @@
 # brdybot
-This is a bot adapted from [chatbot-python-sample](https://github.com/twitchdev/chatbot-python-sample) that I use for Twitch. The bot can be added to your Twitch channel by typing !join in the [bot's channel on Twitch](https://www.twitch.tv/popoit/brdybot/chat).
+This is a bot adapted from [chatbot-python-sample](https://github.com/twitchdev/chatbot-python-sample) that I use for Twitch. The bot can be added to your Twitch channel by typing !join in the [bot's channel on Twitch](https://www.twitch.tv/popout/brdybot/chat).
 
 The bot uses a PostgreSQL database with data scraped and taken from [Serebii.net](https://www.serebii.net), [Bulbapedia](https://bulbapedia.bulbagarden.net/wiki/Main_Page), [veekun's Pokedex](https://github.com/veekun/pokedex), [Smogon University](https://www.smogon.com), and [pokemondb.net](https://pokemondb.net/).
 
