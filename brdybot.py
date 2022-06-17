@@ -20,7 +20,8 @@ from time import sleep
 from datetime import datetime
 from sqlalchemy.orm import aliased
 import re
-from app import getCommands, getTwitchID,insert,update,delete,Session
+from sqlalchemy.dialects.postgresql import INTERVAL
+from app import getCommands, getTwitchID,insert,update,delete,Session,func
 
 dbschema='pokemon,bot'
 config = configparser.ConfigParser()
@@ -41,8 +42,9 @@ def main():
     #twitchusers = Setup.getTwitchIDs()
     commanddict = Setup.getCommandDict()
     twitchusers = Setup.getChannels()
-    Setup.updateTwitchNames(twitchusers)
+    #Setup.updateTwitchNames(twitchusers)
     #twitchusers = Setup.getTwitchIDs()
+    twitchusers = [(1236810,),]
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
         operators = Setup.getOperants(twitchuserid)
@@ -64,9 +66,11 @@ class Bot():
             server.send(bytes('JOIN #' + channel + '\r\n', 'utf-8'))
             #listening loop
             # print("Starting bot in channel " +channel + " with operants: "+str(operators))
-            pattern = re.compile(r'^:[a-zA-Z0-9_]{3,25}![a-zA-Z0-9_]{3,25}@([a-zA-Z0-9_]{3,25})\.tmi\.twitch\.tv\s+PRIVMSG\s+#[a-zA-Z0-9_]{3,25}\s+:!(.*?)$', re.M)
             while listenFlag:
                 try:
+                    commandlist = '|'.join(commandDict)
+                    regexpression = r'^:[a-zA-Z0-9_]{3,25}![a-zA-Z0-9_]{3,25}@([a-zA-Z0-9_]{3,25})\.tmi\.twitch\.tv\s+PRIVMSG\s+#[a-zA-Z0-9_]{3,25}\s+:!('+commandlist+')\s(.*?)$'
+                    pattern = re.compile(regexpression, re.M)
                     message = None
                     response = server.recv(2048).decode('utf-8')
                     if len(response) == 0:
@@ -74,27 +78,25 @@ class Bot():
                     if "PING" in str(response):
                         server.send(bytes('PONG :tmi.twitch.tv\r\n', 'utf-8'))
                     elif ":!" in str(response):
-                        # responsesplit = str(response).split(":!")
                         # if channel == 'brdy':
                         #     print(responsesplit)
-                        for requestername, userMessage in map(lambda x: x.groups(), pattern.finditer(response)):
+                        for requestername,command,userMessage in map(lambda x: x.groups(), pattern.finditer(response)):
                             try:
                                 userMessage = re.sub(' +',' ',userMessage)
                                 # print(requestername)
                                 # print(userMessage)
-                                command = userMessage.replace("'","''").split(" ")[0].lower().strip()
-                                parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").replace("'","''").strip().split(" ")[1:]
-                                permissions = (requestername in operators.values()) or (requestername == channel) or (channel == 'brdybot') or (command == "botinfo")
-                                if (command in list(commandDict.keys())) and (permissions or requestername == 'brdy'):
+                                parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").replace("'","''").strip().split(" ")
+                                permissions = (requestername in operators.values()) or (requestername in [channel,'brdy']) or (channel == 'brdybot') or (command == "botinfo")
+                                if (permissions):
                                     # print(command)
                                     # print(commandDict)
                                     # print(twitchuserid)
                                     # print(requestername)
                                     # print(parameters)
                                     message,ccrid = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
-                                    if message:
+                                    if not Bot.lastMessageCheck(twitchuserid,message):
                                         Bot.chatMessage(message,channel,server)
-                                        operators = Setup.getOperants(twitchuserid)
+                                    operators = Setup.getOperants(twitchuserid)
                             except:
                                 traceback.print_exc()
                             sleep(1)
@@ -137,6 +139,22 @@ class Bot():
         finally:
             if not listenFlag:
                 Bot.logException(errortype,twitchuserid)
+
+    def lastMessageCheck(twitchuserid,message):
+        check = False
+        session = Session(engine)
+        try:
+            channeltwitchuserid, returnstring = session.query(ChannelCommandRequest.channeltwitchuserid,ChannelCommandRequest.channelcommandrequestreturn).\
+                filter(ChannelCommandRequest.channeltwitchuserid == twitchuserid,func.now()-ChannelCommandRequest.channelcommandrequesttime <= func.cast('1 second', INTERVAL)).\
+                order_by(ChannelCommandRequest.channelcommandrequesttime.desc()).first()
+        except:
+            traceback.print_exc()
+            session.rollback()
+        finally:
+            session.close()
+        if channeltwitchuserid == twitchuserid and message == returnstring:
+            check = True
+        return check
 
     def chatMessage(messageString, channel, server):
         x = 1
@@ -278,7 +296,7 @@ class Bot():
         ## if there's an error, this means that either their name has changed or they're already an operant in another channel
         ## therefore, update the TwitchUser record using the requestername
         try:
-            inserttwitchid = insert(TwitchUser).values(twitchuserid=twitchuserid,twitchusername=requestername).on_conflict_do_nothing(index_elements=['twitchuserid'])
+            inserttwitchid = insert(TwitchUser).values(twitchuserid=twitchuserid,twitchusername=requestername.lower()).on_conflict_do_nothing(index_elements=['twitchuserid'])
             insertedtwitchuserid = session.execute(inserttwitchid).inserted_primary_key[0]
             session.commit()
         except:
@@ -385,7 +403,7 @@ class Setup():
         twitchusername = Bot.getTwitchUserName(twitchuserid)
         operantdict = {twitchuserid:twitchusername}
         for channelname,username,userid in channelusers:
-            operantdict[userid] = username
+            operantdict[userid] = username.lower()
         # print(operantdict)
         return operantdict
 
@@ -435,7 +453,7 @@ class Setup():
                 response = requests.get(url,headers=headers)
                 twitchusername = response.json()['data'][0]['login']
                 print("Updating "+str(twitchid)+" to "+twitchusername)
-                stmt = (update(TwitchUser).where(TwitchUser.twitchuserid == twitchid[0]).values(twitchusername=twitchusername))
+                stmt = (update(TwitchUser).where(TwitchUser.twitchuserid == twitchid[0]).values(twitchusername=twitchusername.lower()))
                 session.execute(stmt)
             except:
                 traceback.print_exc()

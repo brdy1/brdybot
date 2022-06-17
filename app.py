@@ -153,14 +153,14 @@ def getCoverage(typelist,twitchuserid=None):
             group_by(PokemonStat.pokemonid).subquery()
         tm1 = aliased(TypeMatchup)            
         tm2 = aliased(TypeMatchup)
-        # shedinjaOverride = case(
-        #                        [
-        #                             ((montypes.c.pokemonid == 343) & (tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1) < 2)),
-        #                             func.max(literal_column("0.00"))
-        #                        ],
-        #                        else_=func.max(tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1))
-        # )
-        attackingdmg = session.query(montypes.c.pokemonid,montypes.c.type1id,montypes.c.type2id,func.max(tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1)).label('dmgmod')).\
+        shedinjaOverride = case(
+                               [
+                                    ((montypes.c.pokemonid == 343) & (tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1) < 2)),
+                                    func.max(literal_column("0.00"))
+                               ],
+                               else_=func.max(tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1))
+        )
+        attackingdmg = session.query(montypes.c.pokemonid,montypes.c.type1id,montypes.c.type2id,shedinjaOverride.label('dmgmod')).\
             select_from(montypes).\
             join(validmons,(montypes.c.pokemonid == validmons.c.pokemonid) & (montypes.c.generationid == validmons.c.gen)).\
             join(tm1,(montypes.c.type1id == tm1.defendingtypeid) & (tm1.generationid == montypes.c.generationid)).\
@@ -183,8 +183,8 @@ def getCoverage(typelist,twitchuserid=None):
         message+=typename+", "
     message=message[0:len(message)-2]+"  ("+ggabbr+") - "
     for dmgbracket,count in coveragecounts:
-        message+="["+str(float(dmgbracket)).replace("0.25","¼").replace("0.5","½").replace("0.50","½").replace("0.0","0").replace(".0","")+"x: "+str(count)+"] "
-    message=message[0:len(message)-1]
+        message+="["+str(float(dmgbracket)).replace("0.25","¼").replace("0.5","½").replace("0.50","½").replace("0.0","0").replace(".0","")+"x: "+str(count)+"] - "
+    message=message[0:len(message)-2]
     mindmg,count = coveragecounts[0]
     if mindmg < .5 and coveragecounts[1][0] < 1:
         count += coveragecounts[1][1]
@@ -662,6 +662,41 @@ def getTwitchID(username):
     userid = response.json()['data'][0]['id']
     # print(userid)
     return userid
+
+@app.route("/api/v2.0/basestats/<monname>")
+def getStats(monname):
+    session = Session(engine)
+    twitchuserid = int(request.args.get("twitchuserid"))
+    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
+    try:
+        monid,monName,gamegroup,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.gamegroupname,GameGroup.generationid).\
+                        select_from(PokemonGameAvailability).\
+                        join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                        join(Game,Channel.gameid == Game.gameid).\
+                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                        join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+                        join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                        filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                        order_by(monShtein).first()
+    except:
+        traceback.print_exc()
+        session.rollback()
+    try:
+        stats = session.query(Stat.statabbreviation,PokemonStat.pokemonstatvalue).select_from(PokemonStat).\
+                    join(Stat.statid, PokemonStat.statid == Stat.statid).\
+                    filter(PokemonStat.pokemonid == monid,PokemonStat.generationid <= generation).\
+                    order_by(PokemonStat.generationid.desc()).\
+                        first()
+    except:
+        traceback.print_exc()
+        session.rollback()
+    finally:
+        session.close()
+    message = monName+" (Gen "+str(generation)+"): "
+    for statabb,statvalue in stats:
+        message += statabb + " "+statvalue+", "
+    message = message[0:len(message)-2]
+    return {'message':message,'returnid':monid}
 
 @app.route("/api/v2.0/type/<monname>")
 def getTypes(monname):
