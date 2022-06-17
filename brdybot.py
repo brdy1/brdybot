@@ -93,8 +93,8 @@ class Bot():
                                     # print(twitchuserid)
                                     # print(requestername)
                                     # print(parameters)
-                                    message,ccrid = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
                                     if not Bot.lastMessageCheck(twitchuserid,message):
+                                        message,ccrid = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
                                         Bot.chatMessage(message,channel,server)
                                     operators = Setup.getOperants(twitchuserid)
                             except:
