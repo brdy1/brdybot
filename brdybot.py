@@ -93,9 +93,10 @@ class Bot():
                                     # print(twitchuserid)
                                     # print(requestername)
                                     # print(parameters)
-                                    message,ccrid = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
+                                    message,returnid,commandid,commandtype = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
                                     if not Bot.lastMessageCheck(twitchuserid,message):
                                         Bot.chatMessage(message,channel,server)
+                                    ccrid = Bot.logCommand(commandid,twitchuserid,requestername,message,parameters,commandtype,returnid)
                                     operators = Setup.getOperants(twitchuserid)
                             except:
                                 traceback.print_exc()
@@ -266,11 +267,9 @@ class Bot():
                 print(message)
             except:
                 message = "There was an error executing the "+command+" command with the given parameters. Check your parameters and try again. Use '!help "+command+"' for more help."
-                ccrid = None
                 returnid = None
                 traceback.print_exc()
-        ccrid = Bot.logCommand(commandid,twitchuserid,requestername,message,parameters,commandtype,returnid)
-        return message,ccrid
+        return message,returnid,commandid,commandtype
 
     def getTwitchUserName(twitchuserid):
         session = Session(engine)
