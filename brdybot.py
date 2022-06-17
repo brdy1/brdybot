@@ -146,7 +146,7 @@ class Bot():
         session = Session(engine)
         try:
             msgCheck = session.query(ChannelCommandRequest.channeltwitchuserid,ChannelCommandRequest.channelcommandrequestreturn).\
-                filter(ChannelCommandRequest.channeltwitchuserid == twitchuserid,func.now()-ChannelCommandRequest.channelcommandrequesttime <= func.cast('1 second', INTERVAL)).\
+                filter(ChannelCommandRequest.channeltwitchuserid == twitchuserid,ChannelCommandRequest.channelcommandrequestreturn == message,(func.now()-ChannelCommandRequest.channelcommandrequesttime <= func.cast('2 second', INTERVAL))).\
                 order_by(ChannelCommandRequest.channelcommandrequesttime.desc()).first()
         except:
             traceback.print_exc()
