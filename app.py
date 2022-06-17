@@ -686,7 +686,7 @@ def getStats(monname):
                     join(Stat, PokemonStat.statid == Stat.statid).\
                     filter(PokemonStat.pokemonid == monid,PokemonStat.generationid <= generation).\
                     order_by(PokemonStat.generationid.desc()).\
-                        first()
+                        all()
     except:
         traceback.print_exc()
         session.rollback()
