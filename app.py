@@ -683,7 +683,7 @@ def getStats(monname):
         session.rollback()
     try:
         stats = session.query(Stat.statabbreviation,PokemonStat.pokemonstatvalue).select_from(PokemonStat).\
-                    join(Stat.statid, PokemonStat.statid == Stat.statid).\
+                    join(Stat, PokemonStat.statid == Stat.statid).\
                     filter(PokemonStat.pokemonid == monid,PokemonStat.generationid <= generation).\
                     order_by(PokemonStat.generationid.desc()).\
                         first()
