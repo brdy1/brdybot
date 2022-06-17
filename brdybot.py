@@ -42,9 +42,9 @@ def main():
     #twitchusers = Setup.getTwitchIDs()
     commanddict = Setup.getCommandDict()
     twitchusers = Setup.getChannels()
-    Setup.updateTwitchNames(twitchusers)
+    #Setup.updateTwitchNames(twitchusers)
     #twitchusers = Setup.getTwitchIDs()
-    #twitchusers = [(1236810,),]
+    twitchusers = [(1236810,),]
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
         operators = Setup.getOperants(twitchuserid)
@@ -190,6 +190,7 @@ class Bot():
     def logCommand(commandid,twitchuserid,requestername,message,parameters=None,commandtype=None,returnid=None):
         session = Session(engine)
         operanttwitchuserid = getTwitchID(requestername)
+        print("logging...")
         if commandtype != 'game':
             gameid = session.query(Channel.gameid).filter(Channel.twitchuserid==twitchuserid).first()[0]
         try:
@@ -219,6 +220,7 @@ class Bot():
                 traceback.print_exc()
             finally:
                 session.close()
+        print(ccrid)
         return ccrid
 
     def doCommand(command,commandDict,twitchuserid,requestername,parameters=None):
