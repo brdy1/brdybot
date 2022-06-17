@@ -154,10 +154,10 @@ def getCoverage(typelist,twitchuserid=None):
         tm1 = aliased(TypeMatchup)            
         tm2 = aliased(TypeMatchup)
         shedinjaOverride = case(
-                               [
+                               (
                                     ((montypes.c.pokemonid == 343) & (tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1) < 2)),
                                     func.max(literal_column("0.00"))
-                               ],
+                               ),
                                else_=func.max(tm1.damagemodifier*func.coalesce(tm2.damagemodifier,1))
         )
         attackingdmg = session.query(montypes.c.pokemonid,montypes.c.type1id,montypes.c.type2id,shedinjaOverride.label('dmgmod')).\
