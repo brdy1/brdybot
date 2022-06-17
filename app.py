@@ -696,7 +696,7 @@ def getStats(monname):
         session.close()
     message = monName+" (Gen "+str(generation)+"): "
     for statabb,statvalue in stats:
-        message += str(statabb) + " "+str(statvalue)+", "
+        message += "["+str(statabb) + " "+str(statvalue)+"] - "
     message = message[0:len(message)-2]
     return {'message':message,'returnid':monid}
 
