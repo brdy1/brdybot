@@ -144,7 +144,7 @@ class Bot():
         check = False
         session = Session(engine)
         try:
-            channeltwitchuserid, returnstring = session.query(ChannelCommandRequest.channeltwitchuserid,ChannelCommandRequest.channelcommandrequestreturn).\
+            msgCheck = session.query(ChannelCommandRequest.channeltwitchuserid,ChannelCommandRequest.channelcommandrequestreturn).\
                 filter(ChannelCommandRequest.channeltwitchuserid == twitchuserid,func.now()-ChannelCommandRequest.channelcommandrequesttime <= func.cast('1 second', INTERVAL)).\
                 order_by(ChannelCommandRequest.channelcommandrequesttime.desc()).first()
         except:
@@ -152,7 +152,7 @@ class Bot():
             session.rollback()
         finally:
             session.close()
-        if channeltwitchuserid == twitchuserid and message == returnstring:
+        if msgCheck:
             check = True
         return check
 
