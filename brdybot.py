@@ -43,7 +43,7 @@ def main():
     commanddict = Setup.getCommandDict()
     twitchusers = Setup.getChannels()
     Setup.updateTwitchNames(twitchusers)
-    twitchusers = Setup.getTwitchIDs()
+    #twitchusers = Setup.getTwitchIDs()
     #twitchusers = [(1236810,),]
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
