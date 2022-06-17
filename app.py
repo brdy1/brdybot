@@ -682,9 +682,11 @@ def getStats(monname):
         traceback.print_exc()
         session.rollback()
     try:
+        monid,maxgen = session.query(PokemonStat.pokemonid,func.max(PokemonStat.generationid)).select_from(PokemonStat).\
+                    filter(PokemonStat.generationid <= generation,PokemonStat.pokemonid == monid).group_by(PokemonStat.pokemonid).first()
         stats = session.query(Stat.statabbreviation,PokemonStat.pokemonstatvalue).select_from(PokemonStat).\
                     join(Stat, PokemonStat.statid == Stat.statid).\
-                    filter(PokemonStat.pokemonid == monid,PokemonStat.generationid <= generation).\
+                    filter(PokemonStat.pokemonid == monid,PokemonStat.generationid == maxgen).\
                     order_by(PokemonStat.generationid.desc()).\
                         all()
     except:
