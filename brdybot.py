@@ -39,11 +39,9 @@ Base.metadata.create_all(engine)
 
 def main():
     conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
-    #twitchusers = Setup.getTwitchIDs()
     commanddict = Setup.getCommandDict()
     twitchusers = Setup.getChannels()
     Setup.updateTwitchNames(twitchusers)
-    #twitchusers = Setup.getTwitchIDs()
     #twitchusers = [(1236810,),]
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
@@ -58,6 +56,7 @@ class Bot():
         try:
             listenFlag = True
             channel = Bot.getTwitchUserName(twitchuserid)
+            # channel = 'brdy'
             #joining the channel
             server = socket.socket()
             server.connect(conn)
@@ -65,7 +64,6 @@ class Bot():
             server.send(bytes('NICK ' + botName + '\r\n', 'utf-8'))
             server.send(bytes('JOIN #' + channel + '\r\n', 'utf-8'))
             #listening loop
-            # print("Starting bot in channel " +channel + " with operants: "+str(operators))
             while listenFlag:
                 try:
                     commandlist = '|'.join(commandDict)
@@ -78,21 +76,12 @@ class Bot():
                     if "PING" in str(response):
                         server.send(bytes('PONG :tmi.twitch.tv\r\n', 'utf-8'))
                     elif ":!" in str(response):
-                        # if channel == 'brdy':
-                        #     print(responsesplit)
                         for requestername,command,userMessage in map(lambda x: x.groups(), pattern.finditer(response)):
                             try:
                                 userMessage = re.sub(' +',' ',userMessage)
-                                # print(requestername)
-                                # print(userMessage)
                                 parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").replace("'","''").strip().split(" ")
                                 permissions = (requestername in operators.values()) or (requestername in [channel,'brdy']) or (channel == 'brdybot') or (command == "botinfo")
                                 if (permissions):
-                                    # print(command)
-                                    # print(commandDict)
-                                    # print(twitchuserid)
-                                    # print(requestername)
-                                    # print(parameters)
                                     message,returnid,commandid,commandtype = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
                                     if not Bot.lastMessageCheck(twitchuserid,message):
                                         Bot.chatMessage(message,channel,server)
@@ -190,6 +179,7 @@ class Bot():
     def logCommand(commandid,twitchuserid,requestername,message,parameters=None,commandtype=None,returnid=None):
         session = Session(engine)
         operanttwitchuserid = getTwitchID(requestername)
+        #operanttwitchuserid = 1236810
         print("logging...")
         if commandtype != 'game':
             gameid = session.query(Channel.gameid).filter(Channel.twitchuserid==twitchuserid).first()[0]

@@ -340,6 +340,16 @@ class TwitchUser(Base):
     twitchuserid = Column("twitchuserid",Integer,primary_key=True)
     twitchusername = Column("twitchusername",String(100))
 
+############ WAREHOUSE ############
+
+class RandomizerEvolutionCounts(Base):
+    __tablename__ = 'randomizerevolutioncounts'
+    index = Column("index",BigInteger,primary_key=True)
+    basepokemonid = Column("basepokemonid",Integer,ForeignKey("pokemon.pokemonid"))
+    targetpokemonid = Column("targetpokemonid",Integer,ForeignKey("pokemon.pokemonid"))
+    vanillatargetid = Column("vanillatargetid",Integer,ForeignKey("pokemon.pokemonid"))
+    count = Column("count",Integer)
+
 Base.metadata.create_all(engine)
 
 #################################################
