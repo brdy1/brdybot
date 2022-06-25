@@ -964,6 +964,7 @@ def getXP(parameters):
             except:
                 enemylevel = int(parameters[len(parameters)-1])
                 monname = str(parameters[0:len(parameters)-1])
+                monlevel = None
     session = Session(engine)
     try:
         monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
