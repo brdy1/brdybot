@@ -137,7 +137,7 @@ def getCoverage(typelist,twitchuserid=None):
         validated = session.query(Pokemon.pokemonid).\
             join(PokemonGameAvailability,Pokemon.pokemonid == PokemonGameAvailability.pokemonid).\
             filter(PokemonGameAvailability.gameid == gameid,PokemonGameAvailability.pokemonavailabilitytypeid != 18)
-        print(validated)
+        # print(validated)
         validmons = session.query(*validSel).\
             filter(PokemonStat.pokemonid.in_(validated),PokemonStat.generationid <= generation).\
                 group_by(PokemonStat.pokemonid).subquery()
@@ -527,7 +527,7 @@ def getMove(movename):
     if acc > 0:
         message += " | Acc: "+str(acc)
     message += " | Priority: "+str(priority)+" | Summary: "+description
-    print(message)
+    # print(message)
     return {'message':message,'returnid':moveid}
     
 @app.route("/api/v2.0/nature/<naturename>")
@@ -615,7 +615,7 @@ def insertOperant(operantlist):
     finally:
         session.close()
     message = "Successfully added bot users to configuration."
-    print(message)
+    # print(message)
     return {'message':message,'returnid':None}
 
 @app.route("/api/v2.0/revo/<parameters>")
@@ -708,7 +708,7 @@ def randoEvolution(parameters):
         else:
             randopercents = randopercents.filter(BaseMon.pokemonname == monName)
             randopercents = randopercents.order_by(RandomizerEvolutionCounts.count.desc())
-        print(randopercents)
+        # print(randopercents)
         if limit:
             randopercents = randopercents.limit(limit)
         else:
