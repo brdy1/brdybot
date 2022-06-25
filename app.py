@@ -935,10 +935,8 @@ def getWeaknesses(monname):
     
 @app.route("/api/v2.0/xp/<parameters>")
 def getXP(parameters):
-    parameters = parameters.split(" ")
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
-
     if len(parameters.split(" ")) == 1:
         monname = parameters
         enemylevel = 8
@@ -959,7 +957,6 @@ def getXP(parameters):
         except:
             enemylevel = int(parameters[0])
             monname = int(parameters[1:])
-            
     session = Session(engine)
     try:
         monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
