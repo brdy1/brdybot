@@ -958,7 +958,7 @@ def getXP(parameters):
             monname = str(parameters[2:])
         except:
             enemylevel = int(parameters[0])
-            monname = int(parameters[1:])
+            monname = str(parameters[1:])
             monlevel = None
     session = Session(engine)
     try:
