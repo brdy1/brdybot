@@ -1016,7 +1016,7 @@ def getXP(parameters):
             v = 1
         wildxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
         trainerxp = str(int(math.floor((b*L*v/5*s)*(math.pow((2*L+10)/(L+L2+10),2.5)))))
-    message = monName+" XP ("+gamegroupabbr+"): Wild="+wildxp+"/Trainer="+trainerxp
+    message = monName+"Lvl "+str(enemylevel)+" XP ("+gamegroupabbr+"): Wild="+wildxp+"/Trainer="+trainerxp
     # print(message)
     return {'message':message,'returnid':monid}      
 
