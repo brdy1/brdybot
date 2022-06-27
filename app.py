@@ -446,6 +446,7 @@ def listOps():
 
 @app.route("/api/v2.0/mon/<monname>")
 def getMon(monname):
+    print(monname)
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
     try:
@@ -459,6 +460,7 @@ def getMon(monname):
                             join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
                             filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
                             order_by(monShtein).first()
+        print(monName)
         Type1 = aliased(Type)
         Type2 = aliased(Type)
         monsel = [Pokemon.pokemonpokedexnumber,
@@ -476,9 +478,9 @@ def getMon(monname):
         session.close()
     moveLevels = getLearnset(monName,namesFlag=False,twitchuserid=twitchuserid)
     evo = getEvos(monName,one=True)
-    bst = getBST(monName)['message'].split(':')[1]
-    typestring = getTypes(name)['message'].split(':')[1]
-    message = "#"+str(dex).strip()+" "+name.strip()+" ("+gamegroupname.strip()+") | "+typestring.strip()+" | BST: "+str(bst).strip()+" | "+evo['message'].split(':')[1].strip()+" | "+str(leveling).strip()+" | "+moveLevels['message'].split(":")[1].strip()
+    bst = getBST(monName)['message'].split('BST:')[1]
+    typestring = getTypes(name)['message'].split('):')[1]
+    message = "#"+str(dex).strip()+" "+name.strip()+" ("+gamegroupname.strip()+") | "+typestring.strip()+" | BST: "+str(bst).strip()+" | "+evo['message'].split('):')[1].strip()+" | "+str(leveling).strip()+" | "+moveLevels['message'].split(":")[1].strip()
     # print(message)
     return {'message':message,'returnid':monid}
     
