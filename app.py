@@ -480,7 +480,7 @@ def getMon(monname):
     evo = getEvos(monName,one=True)
     bst = getBST(monName)['message'].split('BST:')[1]
     typestring = getTypes(name)['message'].split('):')[1]
-    message = "#"+str(dex).strip()+" "+name.strip()+" ("+gamegroupname.strip()+") | "+typestring.strip()+" | BST: "+str(bst).strip()+" | "+evo['message'].split('):')[1].strip()+" | "+str(leveling).strip()+" | "+moveLevels['message'].split(":")[1].strip()
+    message = "#"+str(dex).strip()+" "+name.strip()+" ("+gamegroupname.strip()+") | "+typestring.strip()+" | BST: "+str(bst).strip()+" | "+evo['message'].split('):')[1].strip()+" | "+str(leveling).strip()+" | "+moveLevels['message'].split(monName+":")[1].strip()
     # print(message)
     return {'message':message,'returnid':monid}
     
