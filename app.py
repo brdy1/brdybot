@@ -446,7 +446,7 @@ def listOps():
 
 @app.route("/api/v2.0/mon/<monname>")
 def getMon(monname):
-    print(monname)
+    #print(monname)
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
     try:
@@ -460,7 +460,7 @@ def getMon(monname):
                             join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
                             filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
                             order_by(monShtein).first()
-        print(monName)
+        #print(monName)
         Type1 = aliased(Type)
         Type2 = aliased(Type)
         monsel = [Pokemon.pokemonpokedexnumber,
