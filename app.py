@@ -1,4 +1,5 @@
 import math
+from random import Random
 from flask import Flask
 from flask_restful import Api, request
 from sqlalchemy.orm import Session,aliased
@@ -669,7 +670,7 @@ def randoEvolution(parameters):
         traceback.print_exc()
     finally:
         session.close()
-    if generation != 3:
+    if generation != 3: #and generation != 1:
         message = "This command is not yet implemented for games outside of generation 3."
         return {'message':message,'returnid':monid}
     if multiFlag:
@@ -708,13 +709,16 @@ def randoEvolution(parameters):
                     filter(BaseMon.pokemonname == monName,VanillaMon.pokemonname == vanillaName).\
                     order_by(RandomizerEvolutionCounts.count.desc())
         else:
-            randopercents = randopercents.filter(BaseMon.pokemonname == monName)
+            randopercents = randopercents.filter(BaseMon.pokemonname == monName,RandomizerEvolutionCounts.generationid == generation)
             randopercents = randopercents.order_by(RandomizerEvolutionCounts.count.desc())
         # print(randopercents)
         if limit:
             randopercents = randopercents.limit(limit)
         else:
             randopercents = randopercents.all()
+        denominator = session.query(func.sum(RandomizerEvolutionCounts.count)).\
+                        filter(RandomizerEvolutionCounts.basepokemonid == 2,RandomizerEvolutionCounts.generationid == generation).\
+                        scalar()/100
     except:
         session.rollback()
         traceback.print_exc()
@@ -732,14 +736,14 @@ def randoEvolution(parameters):
         monList = ""
         cumulativepercent = 0
         for monName,targetMon,targetCount in randopercents:
-            percentchance = float(targetCount)/22255.14
+            percentchance = float(targetCount)/denominator
             cumulativepercent+= percentchance
-            if round(percentchance,2) == 0:
-                percentstr = "<0.01"
+            if round(percentchance,1) == 0:
+                percentstr = "<0.1"
             else:
-                percentstr = str(round(percentchance,2))
+                percentstr = str(round(percentchance,1))
             monList+= targetMon+"("+percentstr+"%), "
-        message+="("+str(round(cumulativepercent,3))+"%): "
+        message+="("+str(round(cumulativepercent,1))+"%): "
         message+=monList[0:len(monList)-2]
     return {'message':message,'returnid':monid}
 
