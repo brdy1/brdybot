@@ -425,7 +425,7 @@ def getLevelRequirements(parameters):
     finally:
         session.close()
     message = rate+": Level "+str(startlvl)+"-"+str(endlvl)+" = "+str(int(float(endxp)-float(startxp)))+" xp."
-    return {'message':message,'returnid':None}
+    return {'message':message,'returnid':rateid}
 
 @app.route("/api/v2.0/listops/")
 def listOps():
