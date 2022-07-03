@@ -273,6 +273,7 @@ class ChannelCommandRequest(Base):
     natureid = Column('natureid',Integer)
     moveid = Column('moveid',Integer)
     gameid = Column('gameid',Integer)
+    levelingrateid = Column('levelingrateid',Integer)
     commandselectid = Column('commandselectid',Integer)
     channelcommandrequesttime = Column('channelcommandrequesttime',DateTime)
     channelcommandrequestreturn = Column('channelcommandrequestreturn',String(300))
@@ -343,11 +344,12 @@ class TwitchUser(Base):
 ############ WAREHOUSE ############
 
 class RandomizerEvolutionCounts(Base):
-    __tablename__ = 'randomizerevolutioncounts'
-    index = Column("index",BigInteger,primary_key=True)
+    __tablename__ = 'randomizerevocountsclean'
+    index = Column("rowid",Integer,primary_key=True)
+    generationid = Column("generationid",Integer,ForeignKey("generation.generationid"))
     basepokemonid = Column("basepokemonid",Integer,ForeignKey("pokemon.pokemonid"))
     targetpokemonid = Column("targetpokemonid",Integer,ForeignKey("pokemon.pokemonid"))
-    vanillatargetid = Column("vanillatargetid",Integer,ForeignKey("pokemon.pokemonid"))
+    vanillatargetid = Column("vanillatargetpokemonid",Integer,ForeignKey("pokemon.pokemonid"))
     count = Column("count",Integer)
 
 Base.metadata.create_all(engine)
