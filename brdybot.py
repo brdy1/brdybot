@@ -42,9 +42,10 @@ def main():
     commanddict = Setup.getCommandDict()
     twitchusers = Setup.getChannels()
     Setup.updateTwitchNames(twitchusers)
-    #twitchusers = [(1236810,),]
+    # twitchusers = [(1236810,),]
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
+        # operators = {'brdy':1236810}
         operators = Setup.getOperants(twitchuserid)
         #create a listening thread
         # print("create listening thread")
@@ -87,6 +88,7 @@ class Bot():
                                         Bot.chatMessage(message,channel,server)
                                     ccrid = Bot.logCommand(commandid,twitchuserid,requestername,message,parameters,commandtype,returnid)
                                     operators = Setup.getOperants(twitchuserid)
+                                    commandDict = Setup.getCommandDict()
                             except:
                                 traceback.print_exc()
                             sleep(1)
@@ -180,7 +182,7 @@ class Bot():
         session = Session(engine)
         operanttwitchuserid = getTwitchID(requestername)
         #operanttwitchuserid = 1236810
-        print("logging...")
+        # print("logging...")
         if commandtype != 'game':
             gameid = session.query(Channel.gameid).filter(Channel.twitchuserid==twitchuserid).first()[0]
         try:
@@ -210,7 +212,7 @@ class Bot():
                 traceback.print_exc()
             finally:
                 session.close()
-        print(ccrid)
+        # print(ccrid)
         return ccrid
 
     def doCommand(command,commandDict,twitchuserid,requestername,parameters=None):
@@ -244,8 +246,8 @@ class Bot():
         url = "http://127.0.0.1:5000/api/v2.0/"+command+"/"
         if parameters:
             url += ' '.join(parameters)
-        print(twitchuserid)
-        print(requestername)
+        # print(twitchuserid)
+        # print(requestername)
         if command == 'join' and twitchuserid == 687207983:
             message = Bot.addClient(requestername)
             returnid = None
@@ -256,7 +258,7 @@ class Bot():
                 response = requests.get(url,params=params)
                 message = json.loads(response.text)['message']
                 returnid = json.loads(response.text)['returnid']
-                print(message)
+                # print(message)
             except:
                 message = "There was an error executing the "+command+" command with the given parameters. Check your parameters and try again. Use '!help "+command+"' for more help."
                 returnid = None
@@ -272,7 +274,7 @@ class Bot():
             traceback.print_exc()
         finally:
             session.close()
-        print(twitchusername)
+        # print(twitchusername)
         return twitchusername[0]
 
     def addClient(requestername):
@@ -291,7 +293,7 @@ class Bot():
             insertedtwitchuserid = session.execute(inserttwitchid).inserted_primary_key[0]
             session.commit()
         except:
-            print("error inserting twitchuser")
+            # print("error inserting twitchuser")
             session.rollback()
             traceback.print_exc()
         finally:
@@ -304,7 +306,7 @@ class Bot():
                 session.commit()
                 successflag = True
             except:
-                print("error inserting channel")
+                # print("error inserting channel")
                 session.rollback()
                 traceback.print_exc()
             try:
@@ -314,7 +316,7 @@ class Bot():
                 # set the successflag to true
                 successflag = True
             except:
-                print("error inserting operant")
+                # print("error inserting operant")
                 session.rollback()
                 traceback.print_exc()
             finally:
@@ -327,7 +329,7 @@ class Bot():
                 # set the successflag to true
                 successflag = True
             except:
-                print("error deleting channeldeletion record")
+                # print("error deleting channeldeletion record")
                 session.rollback()
                 traceback.print_exc()
             finally:
@@ -374,7 +376,7 @@ class Setup():
         return commanddict
 
     def getOperants(twitchuserid):
-        print("getting operants")
+        # print("getting operants")
         session = Session(engine)
         ChannelTwitch = aliased(TwitchUser)
         OperantTwitch = aliased(TwitchUser)
@@ -408,7 +410,7 @@ class Setup():
             traceback.print_exc()
         finally:
             session.close()
-        print(twitchusers)
+        # print(twitchusers)
         return twitchusers
 
     def getTwitchIDs():
@@ -424,7 +426,7 @@ class Setup():
 
     def updateTwitchNames(twitchids):
         session = Session(engine)
-        print("Updating twitch ids...")
+        # print("Updating twitch ids...")
         secret = config['idfetch']['secret']
         clientid = config['idfetch']['clientid']
         AutParams = {'client_id': clientid,
@@ -443,7 +445,7 @@ class Setup():
                 }
                 response = requests.get(url,headers=headers)
                 twitchusername = response.json()['data'][0]['login']
-                print("Updating "+str(twitchid)+" to "+twitchusername)
+                # print("Updating "+str(twitchid)+" to "+twitchusername)
                 stmt = (update(TwitchUser).where(TwitchUser.twitchuserid == twitchid[0]).values(twitchusername=twitchusername.lower()))
                 session.execute(stmt)
             except:
