@@ -11,6 +11,7 @@ import configparser
 import pandas as pd
 import requests
 import traceback
+from itertools import combinations
 
 
 #################################################
@@ -204,9 +205,9 @@ def getCoverage(typelist,twitchuserid=None):
     # print(message)
     return {'message':message,'returnid':None}
 
+@app.route("/api/v2.0/ccomb/<parameters>")
 @app.route("/api/v2.0/coveragecomb/<parameters>")
 def coverageCombinations(parameters):
-    from itertools import combinations
     twitchuserid = int(request.args.get("twitchuserid"))
     parameters = parameters.split(" ")
     movenumber = int(parameters[0])
@@ -653,9 +654,8 @@ def randoEvolution(parameters):
                 ,GameGroup.gamegroupid
                 ,GameGroup.gamegroupname
                 ,GameGroup.generationid
-                ,RandomizerEvolutionCounts.vanillatargetid
                 ]
-        monid,monName,gamegroup,gamegroupname,generation,multiFlag = session.query(*monSel).\
+        monid,monName,gamegroup,gamegroupname,generation = session.query(*monSel).\
                                 select_from(PokemonGameAvailability).\
                                 join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
                                 join(Game,Channel.gameid == Game.gameid).\
@@ -665,17 +665,21 @@ def randoEvolution(parameters):
                                 join(RandomizerEvolutionCounts,Pokemon.pokemonid == RandomizerEvolutionCounts.basepokemonid,isouter=True).\
                                 filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
                                 order_by(monShtein).first()
+        monid,multiFlag = session.query(RandomizerEvolutionCounts.basepokemonid,func.count(func.distinct(RandomizerEvolutionCounts.vanillatargetid))).\
+                                filter(RandomizerEvolutionCounts.basepokemonid == monid,RandomizerEvolutionCounts.gamegroupid == gamegroup).\
+                                group_by(RandomizerEvolutionCounts.basepokemonid).\
+                                first()
     except:
         session.rollback()
         traceback.print_exc()
     finally:
         session.close()
-    if generation != 3: #and generation != 1:
-        message = "This command is not yet implemented for games outside of generation 3."
+    if generation not in [1,2,3,4]:
+        message = "This command is not yet implemented for games higher than generation 4."
         return {'message':message,'returnid':monid}
-    if multiFlag:
+    if multiFlag > 1:
         try:
-            VanillaMon = aliased(Pokemon)
+            # VanillaMon = aliased(Pokemon)
             monShtein = func.least(func.levenshtein(Pokemon.pokemonname,vanillaname),
                                 func.levenshtein(PokemonNickname.pokemonnickname,vanillaname)).label("monShtein")
             vanillaid,vanillaName = session.query(Pokemon.pokemonid,Pokemon.pokemonname).\
@@ -688,36 +692,37 @@ def randoEvolution(parameters):
                                     join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
                                     order_by(monShtein).first()
         except:
-            message = 'Error: If your pokemon has multiple evolution methods, please pass the vanilla target evolution Pokemon as an additional paramater. (e.g. "!revo eevee vaporeon [15]")'
+            message = 'Error: If your pokemon has multiple evolution methods, please pass the vanilla target evolution Pokemon as an additional paramater. (e.g. "!revo eevee vaporeon")'
             return {'message':message,'returnid':None}
         finally:
             session.close()
     BaseMon = aliased(Pokemon)
     TargetMon = aliased(Pokemon)
+    VanillaMon = aliased(Pokemon)
     Type1 = aliased(PokemonType)
     Type2 = aliased(PokemonType)
     evoList = [ BaseMon.pokemonname
                             ,TargetMon.pokemonname
-                            ,RandomizerEvolutionCounts.count
+                            ,RandomizerEvolutionCounts.seedcount
                             ]
     try:
         randopercents = session.query(*evoList).select_from(RandomizerEvolutionCounts).\
                 join(BaseMon,RandomizerEvolutionCounts.basepokemonid == BaseMon.pokemonid).\
                 join(TargetMon,RandomizerEvolutionCounts.targetpokemonid == TargetMon.pokemonid)
-        if multiFlag:
+        if multiFlag > 1:
             randopercents = randopercents.join(VanillaMon,RandomizerEvolutionCounts.vanillatargetid == VanillaMon.pokemonid).\
                     filter(BaseMon.pokemonname == monName,VanillaMon.pokemonname == vanillaName).\
-                    order_by(RandomizerEvolutionCounts.count.desc())
+                    order_by(RandomizerEvolutionCounts.seedcount.desc())
         else:
-            randopercents = randopercents.filter(BaseMon.pokemonname == monName,RandomizerEvolutionCounts.generationid == generation)
-            randopercents = randopercents.order_by(RandomizerEvolutionCounts.count.desc())
+            randopercents = randopercents.filter(BaseMon.pokemonname == monName,RandomizerEvolutionCounts.gamegroupid == gamegroup)
+            randopercents = randopercents.order_by(RandomizerEvolutionCounts.seedcount.desc())
         # print(randopercents)
         if limit:
             randopercents = randopercents.limit(limit)
         else:
             randopercents = randopercents.all()
-        denominator = session.query(func.sum(RandomizerEvolutionCounts.count)).\
-                        filter(RandomizerEvolutionCounts.basepokemonid == 2,RandomizerEvolutionCounts.generationid == generation).\
+        denominator = session.query(func.sum(RandomizerEvolutionCounts.seedcount)).\
+                        filter(RandomizerEvolutionCounts.basepokemonid == 2,RandomizerEvolutionCounts.gamegroupid == gamegroup).\
                         scalar()/100
     except:
         session.rollback()
@@ -730,7 +735,7 @@ def randoEvolution(parameters):
         if limit > randopercents.count():
             limit = randopercents.count()
         message = monName
-        if multiFlag:
+        if multiFlag > 1:
             message+=" -> "+vanillaName
         message+=" Evos - Top "+str(limit)+" "
         monList = ""

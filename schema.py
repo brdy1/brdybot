@@ -344,13 +344,13 @@ class TwitchUser(Base):
 ############ WAREHOUSE ############
 
 class RandomizerEvolutionCounts(Base):
-    __tablename__ = 'randomizerevocountsclean'
-    index = Column("rowid",Integer,primary_key=True)
-    generationid = Column("generationid",Integer,ForeignKey("generation.generationid"))
+    __tablename__ = 'randomizerevolutioncountsfull'
+    randomizerevolutionid = Column("randomizerevolutionid",Integer,primary_key=True)
+    gamegroupid = Column("gamegroupid",Integer,ForeignKey("gamegroup.gamegroupid"))
     basepokemonid = Column("basepokemonid",Integer,ForeignKey("pokemon.pokemonid"))
     targetpokemonid = Column("targetpokemonid",Integer,ForeignKey("pokemon.pokemonid"))
-    vanillatargetid = Column("vanillatargetpokemonid",Integer,ForeignKey("pokemon.pokemonid"))
-    count = Column("count",Integer)
+    vanillatargetid = Column("vanillatargetid",Integer,ForeignKey("pokemon.pokemonid"))
+    seedcount = Column("seedcount",Integer)
 
 Base.metadata.create_all(engine)
 
