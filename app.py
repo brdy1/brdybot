@@ -711,7 +711,7 @@ def randoEvolution(parameters):
                 join(TargetMon,RandomizerEvolutionCounts.targetpokemonid == TargetMon.pokemonid)
         if multiFlag > 1:
             randopercents = randopercents.join(VanillaMon,RandomizerEvolutionCounts.vanillatargetid == VanillaMon.pokemonid).\
-                    filter(BaseMon.pokemonname == monName,VanillaMon.pokemonname == vanillaName).\
+                    filter(BaseMon.pokemonname == monName,VanillaMon.pokemonname == vanillaName,RandomizerEvolutionCounts.gamegroupid == gamegroup).\
                     order_by(RandomizerEvolutionCounts.seedcount.desc())
         else:
             randopercents = randopercents.filter(BaseMon.pokemonname == monName,RandomizerEvolutionCounts.gamegroupid == gamegroup)
