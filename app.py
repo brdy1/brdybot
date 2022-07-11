@@ -674,6 +674,7 @@ def randoEvolution(parameters):
         traceback.print_exc()
     finally:
         session.close()
+    print(multiFlag)
     if generation not in [1,2,3,4]:
         message = "This command is not yet implemented for games higher than generation 4."
         return {'message':message,'returnid':monid}
@@ -699,19 +700,15 @@ def randoEvolution(parameters):
     BaseMon = aliased(Pokemon)
     TargetMon = aliased(Pokemon)
     VanillaMon = aliased(Pokemon)
-    Type1 = aliased(PokemonType)
-    Type2 = aliased(PokemonType)
     evoList = [ BaseMon.pokemonname
                             ,TargetMon.pokemonname
                             ,RandomizerEvolutionCounts.seedcount
                             ]
     try:
         randopercents = session.query(*evoList).select_from(RandomizerEvolutionCounts).\
-                join(BaseMon,RandomizerEvolutionCounts.basepokemonid == BaseMon.pokemonid).\
                 join(TargetMon,RandomizerEvolutionCounts.targetpokemonid == TargetMon.pokemonid)
         if multiFlag > 1:
-            randopercents = randopercents.join(VanillaMon,RandomizerEvolutionCounts.vanillatargetid == VanillaMon.pokemonid).\
-                    filter(BaseMon.pokemonname == monName,VanillaMon.pokemonname == vanillaName,RandomizerEvolutionCounts.gamegroupid == gamegroup).\
+            randopercents = randopercents.filter(BaseMon.pokemonname == monName,RandomizerEvolutionCounts.vanillatargetid == vanillaid,RandomizerEvolutionCounts.gamegroupid == gamegroup).\
                     order_by(RandomizerEvolutionCounts.seedcount.desc())
         else:
             randopercents = randopercents.filter(BaseMon.pokemonname == monName,RandomizerEvolutionCounts.gamegroupid == gamegroup)
