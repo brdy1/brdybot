@@ -697,10 +697,8 @@ def randoEvolution(parameters):
             return {'message':message,'returnid':None}
         finally:
             session.close()
-    BaseMon = aliased(Pokemon)
     TargetMon = aliased(Pokemon)
-    VanillaMon = aliased(Pokemon)
-    evoList = [ BaseMon.pokemonname
+    evoList = [ RandomizerEvolutionCounts.basepokemonid
                             ,TargetMon.pokemonname
                             ,RandomizerEvolutionCounts.seedcount
                             ]
@@ -708,10 +706,10 @@ def randoEvolution(parameters):
         randopercents = session.query(*evoList).select_from(RandomizerEvolutionCounts).\
                 join(TargetMon,RandomizerEvolutionCounts.targetpokemonid == TargetMon.pokemonid)
         if multiFlag > 1:
-            randopercents = randopercents.filter(BaseMon.pokemonname == monName,RandomizerEvolutionCounts.vanillatargetid == vanillaid,RandomizerEvolutionCounts.gamegroupid == gamegroup).\
+            randopercents = randopercents.filter(RandomizerEvolutionCounts.vanillatargetid == vanillaid,RandomizerEvolutionCounts.gamegroupid == gamegroup).\
                     order_by(RandomizerEvolutionCounts.seedcount.desc())
         else:
-            randopercents = randopercents.filter(BaseMon.pokemonname == monName,RandomizerEvolutionCounts.gamegroupid == gamegroup)
+            randopercents = randopercents.filter(RandomizerEvolutionCounts.gamegroupid == gamegroup)
             randopercents = randopercents.order_by(RandomizerEvolutionCounts.seedcount.desc())
         # print(randopercents)
         if limit:
@@ -737,7 +735,7 @@ def randoEvolution(parameters):
         message+=" Evos - Top "+str(limit)+" "
         monList = ""
         cumulativepercent = 0
-        for monName,targetMon,targetCount in randopercents:
+        for basemonid,targetMon,targetCount in randopercents:
             percentchance = float(targetCount)/denominator
             cumulativepercent+= percentchance
             if round(percentchance,1) == 0:
