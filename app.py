@@ -697,19 +697,18 @@ def randoEvolution(parameters):
             return {'message':message,'returnid':None}
         finally:
             session.close()
-    TargetMon = aliased(Pokemon)
     evoList = [ RandomizerEvolutionCounts.basepokemonid
-                            ,TargetMon.pokemonname
+                            ,Pokemon.pokemonname
                             ,RandomizerEvolutionCounts.seedcount
                             ]
     try:
         randopercents = session.query(*evoList).select_from(RandomizerEvolutionCounts).\
-                join(TargetMon,RandomizerEvolutionCounts.targetpokemonid == TargetMon.pokemonid)
+                join(Pokemon,RandomizerEvolutionCounts.targetpokemonid == Pokemon.pokemonid)
         if multiFlag > 1:
-            randopercents = randopercents.filter(RandomizerEvolutionCounts.vanillatargetid == vanillaid,RandomizerEvolutionCounts.gamegroupid == gamegroup).\
+            randopercents = randopercents.filter(RandomizerEvolutionCounts.basepokemonid == monid,RandomizerEvolutionCounts.vanillatargetid == vanillaid,RandomizerEvolutionCounts.gamegroupid == gamegroup).\
                     order_by(RandomizerEvolutionCounts.seedcount.desc())
         else:
-            randopercents = randopercents.filter(RandomizerEvolutionCounts.gamegroupid == gamegroup)
+            randopercents = randopercents.filter(RandomizerEvolutionCounts.basepokemonid == monid,RandomizerEvolutionCounts.gamegroupid == gamegroup)
             randopercents = randopercents.order_by(RandomizerEvolutionCounts.seedcount.desc())
         # print(randopercents)
         if limit:
