@@ -626,6 +626,7 @@ def insertOperant(operantlist):
 def randoEvolution(parameters):
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
+    print(twitchuserid)
     if len(parameters.split(" ")) == 1:
         monname = parameters
         limit = 10
@@ -646,6 +647,7 @@ def randoEvolution(parameters):
         vanillaname = str(parameters[1])
         vanillaname = vanillaname.title()
     monname = monname.title()
+    print(monname)
     try:
         monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),
                             func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
@@ -691,6 +693,7 @@ def randoEvolution(parameters):
                                     join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
                                     join(RandomizerEvolutionCounts,Pokemon.pokemonid == RandomizerEvolutionCounts.vanillatargetid).\
                                     join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                                    filter(Channel.twitchuserid == twitchuserid).\
                                     order_by(monShtein).first()
         except:
             message = 'Error: If your pokemon has multiple evolution methods, please pass the vanilla target evolution Pokemon as an additional paramater. (e.g. "!revo eevee vaporeon")'
@@ -701,28 +704,29 @@ def randoEvolution(parameters):
                             ,Pokemon.pokemonname
                             ,RandomizerEvolutionCounts.seedcount
                             ]
+    print(vanillaid)
     try:
         randopercents = session.query(*evoList).select_from(RandomizerEvolutionCounts).\
-                join(Pokemon,RandomizerEvolutionCounts.targetpokemonid == Pokemon.pokemonid)
+                join(Pokemon,RandomizerEvolutionCounts.targetpokemonid == Pokemon.pokemonid).\
+                join(GameGroup,RandomizerEvolutionCounts.gamegroupid == GameGroup.gamegroupid)
         if multiFlag > 1:
-            randopercents = randopercents.filter(RandomizerEvolutionCounts.basepokemonid == monid,RandomizerEvolutionCounts.vanillatargetid == vanillaid,RandomizerEvolutionCounts.gamegroupid == gamegroup).\
+            randopercents = randopercents.filter(RandomizerEvolutionCounts.basepokemonid == monid,RandomizerEvolutionCounts.vanillatargetid == vanillaid,GameGroup.generationid == generation).\
                     order_by(RandomizerEvolutionCounts.seedcount.desc())
         else:
-            randopercents = randopercents.filter(RandomizerEvolutionCounts.basepokemonid == monid,RandomizerEvolutionCounts.gamegroupid == gamegroup)
+            randopercents = randopercents.filter(RandomizerEvolutionCounts.basepokemonid == monid,GameGroup.generationid == generation)
             randopercents = randopercents.order_by(RandomizerEvolutionCounts.seedcount.desc())
         # print(randopercents)
-        if limit:
-            randopercents = randopercents.limit(limit)
-        else:
-            randopercents = randopercents.all()
+        randopercents = randopercents.limit(limit)
         denominator = session.query(func.sum(RandomizerEvolutionCounts.seedcount)).\
-                        filter(RandomizerEvolutionCounts.basepokemonid == 2,RandomizerEvolutionCounts.gamegroupid == gamegroup).\
+                        join(GameGroup,RandomizerEvolutionCounts.gamegroupid == GameGroup.gamegroupid).\
+                        filter(RandomizerEvolutionCounts.basepokemonid == 2,GameGroup.generationid == generation).\
                         scalar()/100
     except:
         session.rollback()
         traceback.print_exc()
     finally:
         session.close()
+    print(randopercents)
     if len(randopercents.all()) == 0:
         message = monName+" does not evolve."
     else:
@@ -746,6 +750,101 @@ def randoEvolution(parameters):
         message+=monList[0:len(monList)-2]
     return {'message':message,'returnid':monid}
 
+@app.route("/api/v2.0/revorev/<parameters>")
+def randoEvolutionLookup(parameters):
+    session = Session(engine)
+    twitchuserid = int(request.args.get("twitchuserid"))
+    if len(parameters.split(" ")) == 1:
+        monname = parameters
+        limit = 10
+    elif len(parameters.split(" ")) == 2:
+        parameters = parameters.split(" ")
+        try:
+            monname = str(parameters[0])
+            limit = int(parameters[1])
+        except:
+            monname = str(parameters[0])
+            vanillaname = str(parameters[1])
+            vanillaname = vanillaname.title()
+            limit = 10
+    elif len(parameters.split(" ")) > 2:
+        parameters = parameters.split(" ")
+        limit = int(parameters[len(parameters)-1])
+        monname = str(parameters[0])
+        vanillaname = str(parameters[1])
+        vanillaname = vanillaname.title()
+    monname = monname.title()
+    try:
+        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),
+                            func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
+        monSel = [Pokemon.pokemonid
+                ,Pokemon.pokemonname
+                ,GameGroup.gamegroupid
+                ,GameGroup.gamegroupname
+                ,GameGroup.generationid
+                ]
+        monid,monName,gamegroup,gamegroupname,generation = session.query(*monSel).\
+                                select_from(PokemonGameAvailability).\
+                                join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                                join(Game,Channel.gameid == Game.gameid).\
+                                join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                                join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+                                join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                                join(RandomizerEvolutionCounts,Pokemon.pokemonid == RandomizerEvolutionCounts.targetpokemonid).\
+                                filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                                order_by(monShtein).first()
+    except:
+        session.rollback()
+        traceback.print_exc()
+    finally:
+        session.close()
+    if generation not in [1,2,3,4]:
+        message = "This command is not yet implemented for games higher than generation 4."
+        return {'message':message,'returnid':monid}
+    BasePokemon = aliased(Pokemon)
+    VanillaPokemon = aliased(Pokemon)
+    evoList = [ BasePokemon.pokemonname
+                ,VanillaPokemon.pokemonname
+                ,RandomizerEvolutionCounts.seedcount
+                ]
+    try:
+        randopercents = session.query(*evoList).select_from(RandomizerEvolutionCounts).\
+                join(VanillaPokemon,RandomizerEvolutionCounts.vanillatargetid == VanillaPokemon.pokemonid,isouter=True).\
+                join(BasePokemon,RandomizerEvolutionCounts.basepokemonid == BasePokemon.pokemonid).\
+                join(GameGroup,RandomizerEvolutionCounts.gamegroupid == GameGroup.gamegroupid).\
+                filter(RandomizerEvolutionCounts.targetpokemonid == monid,GameGroup.generationid == generation).\
+                order_by(RandomizerEvolutionCounts.seedcount.desc()).limit(limit)
+        denominator = session.query(func.sum(RandomizerEvolutionCounts.seedcount)).\
+                join(GameGroup,RandomizerEvolutionCounts.gamegroupid == GameGroup.gamegroupid).\
+                filter(RandomizerEvolutionCounts.basepokemonid == 2,GameGroup.generationid == generation).\
+                scalar()/100
+    except:
+        session.rollback()
+        traceback.print_exc()
+    finally:
+        session.close()
+    if len(randopercents.all()) == 0:
+        message = "Nothing evolves into "+monName+" in the randomizer - sorry!"
+    else:
+        try:
+            if limit > randopercents.count():
+                limit = randopercents.count()
+            message = monName
+            message+= " - Randomizer Base Evos (Top "+str(limit)+") - "
+            monList = ""
+            for basemon,vanillamon,targetCount in randopercents:
+                percentchance = float(targetCount)/denominator
+                if round(percentchance,1) == 0:
+                    percentstr = "<0.1"
+                else:
+                    percentstr = str(round(percentchance,1))
+                if vanillamon:
+                    basemon = basemon+"->"+vanillamon
+                monList+= basemon+"("+percentstr+"%), "
+            message+=monList[0:len(monList)-2]
+        except:
+            traceback.print_exc()
+    return {'message':message,'returnid':monid}
 
 @app.route("/api/v2.0/removeops/<removelist>")
 def removeOperant(removelist):
