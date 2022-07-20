@@ -700,7 +700,7 @@ def randoEvolution(parameters):
             session.close()
     evoList = [ RandomizerEvolutionCounts.basepokemonid
                             ,Pokemon.pokemonname
-                            ,RandomizerEvolutionCounts.seedcount
+                            ,func.sum(RandomizerEvolutionCounts.seedcount)
                             ]
     try:
         randopercents = session.query(*evoList).select_from(RandomizerEvolutionCounts).\
@@ -708,10 +708,12 @@ def randoEvolution(parameters):
                 join(GameGroup,RandomizerEvolutionCounts.gamegroupid == GameGroup.gamegroupid)
         if multiFlag > 1:
             randopercents = randopercents.filter(RandomizerEvolutionCounts.basepokemonid == monid,RandomizerEvolutionCounts.vanillatargetid == vanillaid,GameGroup.generationid == generation).\
-                    order_by(RandomizerEvolutionCounts.seedcount.desc())
+                    group_by(RandomizerEvolutionCounts.basepokemonid,Pokemon.pokemonname).\
+                    order_by(func.sum(RandomizerEvolutionCounts.seedcount).desc())
         else:
-            randopercents = randopercents.filter(RandomizerEvolutionCounts.basepokemonid == monid,GameGroup.generationid == generation)
-            randopercents = randopercents.order_by(RandomizerEvolutionCounts.seedcount.desc())
+            randopercents = randopercents.filter(RandomizerEvolutionCounts.basepokemonid == monid,GameGroup.generationid == generation).\
+                    group_by(RandomizerEvolutionCounts.basepokemonid,Pokemon.pokemonname)
+            randopercents = randopercents.order_by(func.sum(RandomizerEvolutionCounts.seedcount).desc())
         # print(randopercents)
         randopercents = randopercents.limit(limit)
         denominator = session.query(func.sum(RandomizerEvolutionCounts.seedcount)).\
