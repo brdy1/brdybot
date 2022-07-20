@@ -626,7 +626,6 @@ def insertOperant(operantlist):
 def randoEvolution(parameters):
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
-    print(twitchuserid)
     if len(parameters.split(" ")) == 1:
         monname = parameters
         limit = 10
@@ -647,7 +646,6 @@ def randoEvolution(parameters):
         vanillaname = str(parameters[1])
         vanillaname = vanillaname.title()
     monname = monname.title()
-    print(monname)
     try:
         monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),
                             func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
@@ -676,7 +674,6 @@ def randoEvolution(parameters):
         traceback.print_exc()
     finally:
         session.close()
-    print(multiFlag)
     if generation not in [1,2,3,4]:
         message = "This command is not yet implemented for games higher than generation 4."
         return {'message':message,'returnid':monid}
@@ -704,7 +701,6 @@ def randoEvolution(parameters):
                             ,Pokemon.pokemonname
                             ,RandomizerEvolutionCounts.seedcount
                             ]
-    print(vanillaid)
     try:
         randopercents = session.query(*evoList).select_from(RandomizerEvolutionCounts).\
                 join(Pokemon,RandomizerEvolutionCounts.targetpokemonid == Pokemon.pokemonid).\
@@ -726,7 +722,6 @@ def randoEvolution(parameters):
         traceback.print_exc()
     finally:
         session.close()
-    print(randopercents)
     if len(randopercents.all()) == 0:
         message = monName+" does not evolve."
     else:
