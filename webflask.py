@@ -96,4 +96,4 @@ def html_table(parameters):
         return "Error"
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1',port='443')
+    app.run(host='127.0.0.1',port='5551')
