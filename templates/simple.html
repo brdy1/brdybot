@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        <link rel="stylesheet" type="text/css" href="style.css"/>
+    </style>
+</head>
+<body style="background-color:#3d3d3d;color:white;">
+{% for table in tables %}
+            {{table|safe}}
+            
+{% endfor %}
+
+</body>
+</html>
