@@ -40,13 +40,13 @@ Base.metadata.create_all(engine)
 def main():
     conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
     commanddict = Setup.getCommandDict()
-    twitchusers = Setup.getChannels()
-    Setup.updateTwitchNames(twitchusers)
-    # twitchusers = [(1236810,),]
+    #twitchusers = Setup.getChannels()
+    #Setup.updateTwitchNames(twitchusers)
+    twitchusers = [(1236810,),]
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
-        # operators = {'brdy':1236810}
-        operators = Setup.getOperants(twitchuserid)
+        operators = {'brdy':1236810}
+        #operators = Setup.getOperants(twitchuserid)
         #create a listening thread
         # print("create listening thread")
         threading.Thread(target=Bot.ircListen, args=(conn, token, user, twitchuserid, server, operators, commanddict)).start()
@@ -80,8 +80,8 @@ class Bot():
                         for requestername,command,userMessage in map(lambda x: x.groups(), pattern.finditer(response)):
                             try:
                                 userMessage = re.sub(' +',' ',userMessage)
-                                parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").replace("'","''").strip().split(" ")
-                                permissions = (requestername in operators.values()) or (requestername in [channel,'brdy']) or (channel == 'brdybot') or (command == "botinfo")
+                                parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")
+                                permissions = (command != 'join' and ((requestername in operators.values()) or (requestername in [channel,'brdy']))) or (channel == 'brdybot') or (command == "botinfo")
                                 if (permissions):
                                     message,returnid,commandid,commandtype = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
                                     if not Bot.lastMessageCheck(twitchuserid,message):
@@ -180,8 +180,8 @@ class Bot():
 
     def logCommand(commandid,twitchuserid,requestername,message,parameters=None,commandtype=None,returnid=None):
         session = Session(engine)
-        operanttwitchuserid = getTwitchID(requestername)
-        #operanttwitchuserid = 1236810
+        #operanttwitchuserid = getTwitchID(requestername)
+        operanttwitchuserid = 1236810
         # print("logging...")
         if commandtype != 'game':
             gameid = session.query(Channel.gameid).filter(Channel.twitchuserid==twitchuserid).first()[0]
@@ -343,9 +343,9 @@ class Bot():
             commanddict = Setup.getCommandDict()
             operantDict = Setup.getOperants(twitchuserid)
             threading.Thread(target=Bot.ircListen, args=(conn, token, user, twitchuserid, server, operantDict, commanddict)).start()
-            message = '@'+requestername+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data but I only report on it anonymized or in aggregate."""
+            message = '@'+requestername+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
         else:
-            message = '@'+requestername+""" - Something went wrong or I am in your channel already. If I'm still not talking there, be sure no words I use (like PP) are banned, and that your channel is not set to followers only."""
+            message = '@'+requestername+""" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."""
         return message
 
     def removeChannel(twitchuserid):
@@ -449,6 +449,7 @@ class Setup():
                 stmt = (update(TwitchUser).where(TwitchUser.twitchuserid == twitchid[0]).values(twitchusername=twitchusername.lower()))
                 session.execute(stmt)
             except:
+                print("Could not join channel with twitchid "+str(twitchid))
                 traceback.print_exc()
                 session.rollback()
         session.commit()

@@ -526,9 +526,9 @@ def getMove(movename):
     else:
         contact = "Non-Contact"
     message = str(movename)+" - Gen "+str(gen)+": ("+str(movetype)+", "+str(category)+", "+str(contact)+") | PP: "+str(pp)
-    if power > 0:
+    if power:
         message += " | Power: "+str(power)
-    if acc > 0:
+    if acc:
         message += " | Acc: "+str(acc)
     message += " | Priority: "+str(priority)+" | Summary: "+description
     # print(message)
