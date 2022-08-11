@@ -40,13 +40,13 @@ Base.metadata.create_all(engine)
 def main():
     conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
     commanddict = Setup.getCommandDict()
-    #twitchusers = Setup.getChannels()
+    twitchusers = Setup.getChannels()
     #Setup.updateTwitchNames(twitchusers)
-    twitchusers = [(1236810,),]
+    #twitchusers = [(1236810,),]
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
-        operators = {'brdy':1236810}
-        #operators = Setup.getOperants(twitchuserid)
+        #operators = {'brdy':1236810}
+        operators = Setup.getOperants(twitchuserid)
         #create a listening thread
         # print("create listening thread")
         threading.Thread(target=Bot.ircListen, args=(conn, token, user, twitchuserid, server, operators, commanddict)).start()
