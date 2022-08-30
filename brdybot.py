@@ -31,6 +31,7 @@ host = config['database']['host']
 database = config['database']['database']
 user = config['database']['user']
 password = config['database']['password']
+botname = config['chatbot']['username']
 engine = create_engine('postgresql+psycopg2://'+user+':'+password+'@'+host+':5432/'+database,connect_args={'options': '-csearch_path={}'.format(dbschema)})
 Base = declarative_base(engine)
 
@@ -41,7 +42,7 @@ def main():
     conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
     commanddict = Setup.getCommandDict()
     twitchusers = Setup.getChannels()
-    #Setup.updateTwitchNames(twitchusers)
+    Setup.updateTwitchNames()
     #twitchusers = [(1236810,),]
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
@@ -81,7 +82,7 @@ class Bot():
                             try:
                                 userMessage = re.sub(' +',' ',userMessage)
                                 parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")
-                                permissions = (command != 'join' and ((requestername in operators.values()) or (requestername in [channel,'brdy']))) or (channel == 'brdybot') or (command == "botinfo")
+                                permissions = (command != 'join' and ((requestername in operators.values()) or (requestername in [channel,'brdy']))) or (channel == botname) or (command == "botinfo")
                                 if (permissions):
                                     message,returnid,commandid,commandtype = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
                                     if not Bot.lastMessageCheck(twitchuserid,message):
@@ -404,7 +405,7 @@ class Setup():
         session = Session(engine)
         try:
             deletedchannels = session.query(ChannelDeletion.twitchuserid)
-            twitchusers = session.query(Channel.twitchuserid).order_by(Channel.twitchuserid).all()
+            twitchusers = session.query(Channel.twitchuserid).filter(Channel.twitchuserid.not_in(deletedchannels)).order_by(Channel.twitchuserid).all()
         except:
             session.rollback()
             traceback.print_exc()
@@ -424,7 +425,7 @@ class Setup():
         # Setup.updateTwitchNames(twitchids)
         return twitchids
 
-    def updateTwitchNames(twitchids):
+    def updateTwitchNames():
         session = Session(engine)
         # print("Updating twitch ids...")
         secret = config['idfetch']['secret']
@@ -436,6 +437,7 @@ class Setup():
         authURL = 'https://id.twitch.tv/oauth2/token'
         AutCall = requests.post(url=authURL, params=AutParams) 
         access_token = AutCall.json()['access_token']
+        twitchids = session.query(TwitchUser.twitchuserid).all()
         for twitchid in twitchids:
             try:
                 url = 'https://api.twitch.tv/helix/users?id='+str(twitchid[0])
@@ -449,7 +451,7 @@ class Setup():
                 stmt = (update(TwitchUser).where(TwitchUser.twitchuserid == twitchid[0]).values(twitchusername=twitchusername.lower()))
                 session.execute(stmt)
             except:
-                print("Could not join channel with twitchid "+str(twitchid))
+                print("Could not update channelname with twitchid "+str(twitchid))
                 traceback.print_exc()
                 session.rollback()
         session.commit()
@@ -462,7 +464,7 @@ class Setup():
         file = "chatbot.ini"
         config.read(file)
         token = config['chatbot']['token']
-        botName = "brdybot"
+        botName = botname
         readbuffer = ''
         server = socket.socket()
         return connection_data, token, botName, readbuffer, server, token

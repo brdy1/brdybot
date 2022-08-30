@@ -601,6 +601,7 @@ def insertOperant(operantlist):
         print(operanttwitchuserid)
         newtwitchusers.append({'twitchuserid':operanttwitchuserid,'twitchusername':operant})
         newchannelperants.append({"channeltwitchuserid":channeltwitchuserid,"operanttwitchuserid":operanttwitchuserid,"operanttypeid":2})
+       
         print(newchannelperants)
     try:
         stmt = (insert(TwitchUser).values(newtwitchusers))
@@ -673,6 +674,7 @@ def randoEvolution(parameters):
     except:
         session.rollback()
         traceback.print_exc()
+        return {'message':"There was an error executing the revo command.",'returnid':None}
     finally:
         session.close()
     if generation not in [1,2,3,4]:
@@ -723,6 +725,7 @@ def randoEvolution(parameters):
     except:
         session.rollback()
         traceback.print_exc()
+        return {'message':"There was an error executing the revo command.",'returnid':None}
     finally:
         session.close()
     if len(randopercents.all()) == 0:
@@ -819,6 +822,7 @@ def randoEvolutionLookup(parameters):
     except:
         session.rollback()
         traceback.print_exc()
+        return {'message':"There was an error executing the revo command.",'returnid':None}
     finally:
         session.close()
     if len(randopercents.all()) == 0:
@@ -842,6 +846,7 @@ def randoEvolutionLookup(parameters):
             message+=monList[0:len(monList)-2]
         except:
             traceback.print_exc()
+            return {'message':"There was an error executing the revo command.",'returnid':None}
     return {'message':message,'returnid':monid}
 
 @app.route("/api/v2.0/removeops/<removelist>")
@@ -859,6 +864,7 @@ def removeOperant(removelist):
         except:
             traceback.print_exc()
             session.rollback()
+            return {'message':"There was an error executing the removeops command.",'returnid':None}
         finally:
             session.close()
     session.close()
@@ -906,6 +912,7 @@ def getStats(monname):
                         order_by(monShtein).first()
     except:
         traceback.print_exc()
+        return {'message':'There was an error with the basestats command.','returnid':None}
         session.rollback()
     try:
         monid,maxgen = session.query(PokemonStat.pokemonid,func.max(PokemonStat.generationid)).select_from(PokemonStat).\
