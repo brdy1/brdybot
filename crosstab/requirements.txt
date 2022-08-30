@@ -1,3 +1,0 @@
-sqlalchemy>=1.0
-pytest>=3.0
-psycopg2
