@@ -404,8 +404,8 @@ class Setup():
     def getChannels():
         session = Session(engine)
         try:
-            deletedchannels = session.query(ChannelDeletion.twitchuserid)
-            twitchusers = session.query(Channel.twitchuserid).filter(Channel.twitchuserid.not_in(deletedchannels)).order_by(Channel.twitchuserid).all()
+            deletedchannels = session.query(ChannelDeletion.twitchuserid).subquery()
+            twitchusers = session.query(Channel.twitchuserid).filter(Channel.twitchuserid.notin_(deletedchannels)).order_by(Channel.twitchuserid).all()
         except:
             session.rollback()
             traceback.print_exc()
