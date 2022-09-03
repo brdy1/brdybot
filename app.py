@@ -647,6 +647,7 @@ def randoEvolution(parameters):
         vanillaname = str(parameters[1])
         vanillaname = vanillaname.title()
     monname = monname.title()
+    multiFlag = 0
     try:
         monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname),
                             func.levenshtein(PokemonNickname.pokemonnickname,monname)).label("monShtein")
@@ -674,7 +675,7 @@ def randoEvolution(parameters):
     except:
         session.rollback()
         traceback.print_exc()
-        return {'message':"There was an error executing the revo command.",'returnid':None}
+        return {'message':"There was an error executing the revo command.",'returnid':monid}
     finally:
         session.close()
     if generation not in [1,2,3,4]:
@@ -697,7 +698,7 @@ def randoEvolution(parameters):
                                     order_by(monShtein).first()
         except:
             message = 'Error: If your pokemon has multiple evolution methods, please pass the vanilla target evolution Pokemon as an additional paramater. (e.g. "!revo eevee vaporeon")'
-            return {'message':message,'returnid':None}
+            return {'message':message,'returnid':monid}
         finally:
             session.close()
     evoList = [ RandomizerEvolutionCounts.basepokemonid
@@ -725,7 +726,7 @@ def randoEvolution(parameters):
     except:
         session.rollback()
         traceback.print_exc()
-        return {'message':"There was an error executing the revo command.",'returnid':None}
+        return {'message':"There was an error executing the revo command.",'returnid':monid}
     finally:
         session.close()
     if len(randopercents.all()) == 0:
