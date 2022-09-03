@@ -664,7 +664,6 @@ def randoEvolution(parameters):
                                 join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
                                 join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
                                 join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
-                                join(RandomizerEvolutionCounts,Pokemon.pokemonid == RandomizerEvolutionCounts.basepokemonid,isouter=True).\
                                 filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
                                 order_by(monShtein).first()
         print(monid)
