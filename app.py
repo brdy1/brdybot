@@ -631,7 +631,7 @@ def randoEvolution(parameters):
         monname = parameters
         limit = 10
     elif len(parameters.split(" ")) == 2:
-        parameters.lower().replace("mime jr","MimeJr")
+        parameters = parameters.title().replace("Mime Jr","MimeJr")
         parameters = parameters.split(" ")
         try:
             monname = str(parameters[0])
