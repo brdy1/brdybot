@@ -667,6 +667,9 @@ def randoEvolution(parameters):
                                 join(RandomizerEvolutionCounts,Pokemon.pokemonid == RandomizerEvolutionCounts.basepokemonid,isouter=True).\
                                 filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
                                 order_by(monShtein).first()
+        print(monid)
+        print(monName)
+        print(generation)
         monid,multiFlag = session.query(RandomizerEvolutionCounts.basepokemonid,func.count(func.distinct(RandomizerEvolutionCounts.vanillatargetid))).\
                                 join(GameGroup,RandomizerEvolutionCounts.gamegroupid == GameGroup.gamegroupid).\
                                 filter(RandomizerEvolutionCounts.basepokemonid == monid,GameGroup.generationid == generation).\
