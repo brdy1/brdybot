@@ -41,7 +41,7 @@ def main():
     conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
     commanddict = Setup.getCommandDict()
     twitchusers = Setup.getChannels()
-    #Setup.updateTwitchNames(twitchusers)
+    Setup.updateTwitchNames(twitchusers)
     #twitchusers = [(1236810,),]
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
