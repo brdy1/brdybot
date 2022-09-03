@@ -627,11 +627,11 @@ def insertOperant(operantlist):
 def randoEvolution(parameters):
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
+    parameters = parameters.title().replace("Mime Jr","MimeJr")
     if len(parameters.split(" ")) == 1:
         monname = parameters
         limit = 10
     elif len(parameters.split(" ")) == 2:
-        parameters = parameters.title().replace("Mime Jr","MimeJr")
         parameters = parameters.split(" ")
         try:
             monname = str(parameters[0])
