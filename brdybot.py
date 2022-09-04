@@ -181,8 +181,8 @@ class Bot():
 
     def logCommand(commandid,twitchuserid,requestername,message,parameters=None,commandtype=None,returnid=None):
         session = Session(engine)
-        #operanttwitchuserid = getTwitchID(requestername)
-        operanttwitchuserid = 1236810
+        operanttwitchuserid = getTwitchID(requestername)
+        #operanttwitchuserid = 1236810
         # print("logging...")
         if commandtype != 'game':
             gameid = session.query(Channel.gameid).filter(Channel.twitchuserid==twitchuserid).first()[0]
