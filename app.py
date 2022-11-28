@@ -226,35 +226,37 @@ def coverageCombinations(parameters):
 def getEvos(monname,one=False):
     session = Session(engine)
     twitchuserid = int(request.args.get("twitchuserid"))
-    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
-    monid,monName,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupabbreviation,GameGroup.generationid).\
-                        select_from(PokemonGameAvailability).\
-                        join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
-                        join(Game,Channel.gameid == Game.gameid).\
-                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
-                        join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
-                        join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
-                        filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
-                        order_by(monShtein).first()
-    # print(str(monid)+" "+str(monName)+" "+str(gamegroupname)+" "+str(generation))
-    evosel = [Pokemon.pokemonname
-                ,GameGroup.gamegroupname
-                ,PokemonEvolutionInfo.evolutiontypeid
-                ,Item.itemname
-                ,PokemonEvolutionInfo.pokemonevolutionlevel
-                ,Location.locationname
-                ,Move.movename
-                ,PokemonEvolutionInfo.pokemonevolutionstring
-                ]
-    preevo = session.query(*evosel).select_from(PokemonEvolutionInfo).\
-                            join(Pokemon,PokemonEvolutionInfo.targetpokemonid == Pokemon.pokemonid).\
-                            join(GameGroup,PokemonEvolutionInfo.gamegroupid == GameGroup.gamegroupid).\
-                            join(PokemonEvolutionItem,PokemonEvolutionInfo.pokemonevolutionid == PokemonEvolutionItem.pokemonevolutionid,isouter=True).\
-                            join(Item,PokemonEvolutionInfo.itemid == Item.itemid,isouter=True).\
-                            join(Location,PokemonEvolutionInfo.locationid == Location.locationid,isouter=True).\
-                            join(Move,PokemonEvolutionInfo.moveid == Move.moveid,isouter=True).\
-                            filter(PokemonEvolutionInfo.basepokemonid == monid,GameGroup.generationid <= generation).order_by(GameGroup.gamegrouporder,PokemonEvolutionInfo.evolutiontypeid)
-    session.close()
+    try:
+        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
+        monid,monName,gamegroupname,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupabbreviation,GameGroup.generationid).\
+                            select_from(PokemonGameAvailability).\
+                            join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                            join(Game,Channel.gameid == Game.gameid).\
+                            join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                            join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+                            join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                            filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                            order_by(monShtein).first()
+        # print(str(monid)+" "+str(monName)+" "+str(gamegroupname)+" "+str(generation))
+        evosel = [Pokemon.pokemonname
+                    ,GameGroup.gamegroupname
+                    ,PokemonEvolutionInfo.evolutiontypeid
+                    ,Item.itemname
+                    ,PokemonEvolutionInfo.pokemonevolutionlevel
+                    ,Location.locationname
+                    ,Move.movename
+                    ,PokemonEvolutionInfo.pokemonevolutionstring
+                    ]
+        preevo = session.query(*evosel).select_from(PokemonEvolutionInfo).\
+                                join(Pokemon,PokemonEvolutionInfo.targetpokemonid == Pokemon.pokemonid).\
+                                join(GameGroup,PokemonEvolutionInfo.gamegroupid == GameGroup.gamegroupid).\
+                                join(PokemonEvolutionItem,PokemonEvolutionInfo.pokemonevolutionid == PokemonEvolutionItem.pokemonevolutionid,isouter=True).\
+                                join(Item,PokemonEvolutionInfo.itemid == Item.itemid,isouter=True).\
+                                join(Location,PokemonEvolutionInfo.locationid == Location.locationid,isouter=True).\
+                                join(Move,PokemonEvolutionInfo.moveid == Move.moveid,isouter=True).\
+                                filter(PokemonEvolutionInfo.basepokemonid == monid,GameGroup.generationid <= generation).order_by(GameGroup.gamegrouporder,PokemonEvolutionInfo.evolutiontypeid)
+    finally:
+        session.close()
     if one:
         pokemonEvolutions = [preevo.first()]
     else:
@@ -358,26 +360,28 @@ def getLearnset(monname,namesFlag=True,twitchuserid=None):
     session = Session(engine)
     if not twitchuserid:
         twitchuserid = int(request.args.get("twitchuserid"))
-    monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
-    monid,monName,gamegroup,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.generationid).\
-                        select_from(PokemonGameAvailability).\
-                        join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
-                        join(Game,Channel.gameid == Game.gameid).\
-                        join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
-                        join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
-                        join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
-                        filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
-                        order_by(monShtein).first()
-    pokemonMoves = session.query(Pokemon.pokemonname,GameGroup.gamegroupabbreviation,Move.movename,PokemonMove.pokemonmovelevel).\
-                                        select_from(PokemonMove).\
-                                        join(Pokemon).\
-                                        join(Move).\
-                                        join(GameGroup).\
-                                        filter(Pokemon.pokemonid == monid,PokemonMove.pokemonmovelevel > 1,PokemonMove.gamegroupid == gamegroup).\
-                                        order_by(PokemonMove.pokemonmovelevel).distinct().all()
-    # print(str(monid)+" "+str(monName)+" "+str(gamegroup)+" "+str(generation))
-    # print(pokemonMoves)
-    session.close()
+    try:
+        monShtein = func.least(func.levenshtein(Pokemon.pokemonname,monname.title()),func.levenshtein(PokemonNickname.pokemonnickname,monname.title())).label("monShtein")
+        monid,monName,gamegroup,generation = session.query(Pokemon.pokemonid,Pokemon.pokemonname,GameGroup.gamegroupid,GameGroup.generationid).\
+                            select_from(PokemonGameAvailability).\
+                            join(Channel,PokemonGameAvailability.gameid == Channel.gameid).\
+                            join(Game,Channel.gameid == Game.gameid).\
+                            join(GameGroup,Game.gamegroupid == GameGroup.gamegroupid).\
+                            join(Pokemon,PokemonGameAvailability.pokemonid == Pokemon.pokemonid).\
+                            join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
+                            filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
+                            order_by(monShtein).first()
+        pokemonMoves = session.query(Pokemon.pokemonname,GameGroup.gamegroupabbreviation,Move.movename,PokemonMove.pokemonmovelevel).\
+                                            select_from(PokemonMove).\
+                                            join(Pokemon).\
+                                            join(Move).\
+                                            join(GameGroup).\
+                                            filter(Pokemon.pokemonid == monid,PokemonMove.pokemonmovelevel > 1,PokemonMove.gamegroupid == gamegroup).\
+                                            order_by(PokemonMove.pokemonmovelevel).distinct().all()
+        # print(str(monid)+" "+str(monName)+" "+str(gamegroup)+" "+str(generation))
+        # print(pokemonMoves)
+    finally:
+        session.close()
     message = monName
     if len(pokemonMoves) > 0:
         if namesFlag:
@@ -681,8 +685,8 @@ def randoEvolution(parameters):
         return {'message':"There was an error executing the revo command.",'returnid':monid}
     finally:
         session.close()
-    if generation not in [1,2,3,4]:
-        message = "This command is not yet implemented for games higher than generation 4."
+    if generation not in [1,2,3,4,5]:
+        message = "This command is not yet implemented for games higher than generation 5."
         return {'message':message,'returnid':monid}
     if multiFlag > 1:
         try:
@@ -916,8 +920,8 @@ def getStats(monname):
                         order_by(monShtein).first()
     except:
         traceback.print_exc()
+        session.close()
         return {'message':'There was an error with the basestats command.','returnid':None}
-        session.rollback()
     try:
         monid,maxgen = session.query(PokemonStat.pokemonid,func.max(PokemonStat.generationid)).select_from(PokemonStat).\
                     filter(PokemonStat.generationid <= generation,PokemonStat.pokemonid == monid).group_by(PokemonStat.pokemonid).first()
