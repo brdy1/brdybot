@@ -446,7 +446,8 @@ class Setup():
                     'Client-Id':clientid
                 }
                 response = requests.get(url,headers=headers)
-                twitchusername = response.json()['data'][0]['login']
+                for obj in response.json()['data']:
+                    twitchusername = obj['login']
                 # print("Updating "+str(twitchid)+" to "+twitchusername)
                 stmt = (update(TwitchUser).where(TwitchUser.twitchuserid == twitchid[0]).values(twitchusername=twitchusername.lower()))
                 session.execute(stmt)
@@ -454,7 +455,8 @@ class Setup():
                 print("Could not update channelname with twitchid "+str(twitchid))
                 traceback.print_exc()
                 session.rollback()
-        session.commit()
+            finally:
+                session.commit()
         session.close()
 
     def getConnectionVariables():
