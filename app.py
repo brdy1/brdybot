@@ -108,13 +108,19 @@ def getBST(monname):
         session.close()
     # print(message)
     return {'message':message,'returnid':monid}
-    
+
+@app.route("/api/v2.0/evocoverage/<typelist>")
+def getEvolvedCoverage(typelist,twitchuserid=None):
+    if not twitchuserid:
+        twitchuserid = int(request.args.get("twitchuserid"))
+    getCoverage(typelist,twitchuserid=twitchuserid,all=False)
+
 @app.route("/api/v2.0/coverage/<typelist>")
-def getCoverage(typelist,twitchuserid=None):
+def getCoverage(typelist,twitchuserid=None,all=True):
     session = Session(engine)
     if not twitchuserid:
         twitchuserid = int(request.args.get("twitchuserid"))
-    typelist = typelist.split(" ")
+    typelist = typelist.replace(",","").split(" ")
     try:
         gameid,generation,ggabbr = session.query(Game.gameid,GameGroup.generationid,GameGroup.gamegroupabbreviation).\
             select_from(Channel).\
@@ -140,9 +146,22 @@ def getCoverage(typelist,twitchuserid=None):
             join(PokemonGameAvailability,Pokemon.pokemonid == PokemonGameAvailability.pokemonid).\
             filter(PokemonGameAvailability.gameid == gameid,PokemonGameAvailability.pokemonavailabilitytypeid != 18)
         # print(validated)
-        validmons = session.query(*validSel).\
-            filter(PokemonStat.pokemonid.in_(validated),PokemonStat.generationid <= generation).\
-                group_by(PokemonStat.pokemonid).subquery()
+        if all: ## If all is true, fetch all pokemon for that generation
+            validmons = session.query(*validSel).\
+                filter(PokemonStat.pokemonid.in_(validated),PokemonStat.generationid <= generation).\
+                    group_by(PokemonStat.pokemonid).subquery()
+        else: ## If all is false, fetch only pokemon that don't appear as base pokemon in the evolution info table in any games of the current gen or lower
+            validmons = session.query(*validSel).\
+                filter(
+                    PokemonStat.pokemonid.in_(validated),
+                    PokemonStat.generationid <= generation,
+                    PokemonStat.pokemonid.notin_(
+                        session.query(PokemonEvolutionInfo.basepokemonid).\
+                            join(GameGroup,PokemonEvolutionInfo.gamegroupid == GameGroup.gamegroupid).\
+                            filter(GameGroup.generationid <= generation)
+                        )
+                    ).\
+                    group_by(PokemonStat.pokemonid).subquery()
         type1 = session.query(PokemonType.generationid,PokemonType.pokemonid,PokemonType.typeid).\
             filter(PokemonType.pokemontypeorder == 1).subquery()
         type2 = session.query(PokemonType.generationid,PokemonType.pokemonid,PokemonType.typeid).\
@@ -807,7 +826,7 @@ def randoEvolutionLookup(parameters):
         traceback.print_exc()
     finally:
         session.close()
-    if generation not in [1,2,3,4]:
+    if generation not in [1,2,3,4,5]:
         message = "This command is not yet implemented for games higher than generation 4."
         return {'message':message,'returnid':monid}
     BasePokemon = aliased(Pokemon)
