@@ -446,8 +446,7 @@ class Setup():
                     'Client-Id':clientid
                 }
                 response = requests.get(url,headers=headers)
-                for obj in response.json()['data']:
-                    twitchusername = obj['login']
+                twitchusername = response.json()['data'][0]['login']
                 # print("Updating "+str(twitchid)+" to "+twitchusername)
                 stmt = (update(TwitchUser).where(TwitchUser.twitchuserid == twitchid[0]).values(twitchusername=twitchusername.lower()))
                 session.execute(stmt)
