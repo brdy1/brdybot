@@ -430,7 +430,7 @@ def getLearnsetShort(monname):
 @app.route("/api/v2.0/level/<parameters>")
 def getLevelRequirements(parameters):
     session = Session(engine)
-    growth,startlvl,endlvl = parameters.lower().replace('-',' ').replace('m s','m-s').replace('m f','m-f').split(" ")
+    growth,startlvl,endlvl = parameters.lower().replace('-',' ').replace('m s','m-s').replace('m f','m-f').replace('o f','o-f').split(" ")
     startlvl = int(startlvl)
     endlvl = int(endlvl)
     # print(growth)
