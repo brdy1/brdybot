@@ -240,7 +240,7 @@ class Bot():
                     if minparam is None and maxparam is None:
                         message += "no"
                     message += " parameters. Use '!help "+command+" for more help."
-                    return message
+                    return message,None,commandid,commandtype
         params = {  'twitchuserid':twitchuserid,
                     'requestername':requestername
                     }
