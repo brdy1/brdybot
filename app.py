@@ -701,6 +701,7 @@ def randoEvolution(parameters):
     except:
         session.rollback()
         traceback.print_exc()
+        session.close()
         return {'message':"There was an error executing the revo command.",'returnid':monid}
     finally:
         session.close()
@@ -724,6 +725,9 @@ def randoEvolution(parameters):
                                     order_by(monShtein).first()
         except:
             message = 'Error: If your pokemon has multiple evolution methods, please pass the vanilla target evolution Pokemon as an additional paramater. (e.g. "!revo eevee vaporeon")'
+            session.rollback()
+            traceback.print_exc()
+            session.close()
             return {'message':message,'returnid':monid}
         finally:
             session.close()
@@ -752,6 +756,7 @@ def randoEvolution(parameters):
     except:
         session.rollback()
         traceback.print_exc()
+        session.close()
         return {'message':"There was an error executing the revo command.",'returnid':monid}
     finally:
         session.close()
@@ -849,6 +854,7 @@ def randoEvolutionLookup(parameters):
     except:
         session.rollback()
         traceback.print_exc()
+        session.close()
         return {'message':"There was an error executing the revo command.",'returnid':None}
     finally:
         session.close()
