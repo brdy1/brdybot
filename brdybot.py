@@ -132,6 +132,8 @@ class Bot():
         finally:
             if not listenFlag:
                 Bot.logException(errortype,twitchuserid)
+                commanddict = Setup.getCommandDict()
+                Bot.ircListen(conn, token, user, twitchuserid, server, operators, commanddict)
 
     def lastMessageCheck(twitchuserid,message):
         check = False
@@ -166,14 +168,10 @@ class Bot():
             server.send(bytes('PRIVMSG #'+ channel + ' :'+messageString.replace("//","")+' \r\n', 'utf-8'))  
 
     def logException(errortype,twitchuserid):
-        session = Session(engine)
         now = datetime.now()
         channel = Bot.getTwitchUserName(twitchuserid)
-        try:
-            with open('errorlog.txt', 'a') as f:
-                f.write(str(now)+' | '+errortype+' | '+str(twitchuserid)+' | '+str(channel)+'\r\n')
-        finally:
-            session.close()
+        with open('errorlog.txt', 'a') as f:
+            f.write(str(now)+' | '+errortype+' | '+str(twitchuserid)+' | '+str(channel)+'\r\n')
         conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
         operators = Setup.getOperants(twitchuserid)
         commanddict = Setup.getCommandDict()
