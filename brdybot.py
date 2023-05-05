@@ -175,7 +175,6 @@ class Bot():
         conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
         operators = Setup.getOperants(twitchuserid)
         commanddict = Setup.getCommandDict()
-        threading.Thread(target=Bot.ircListen, args=(conn, token, user, twitchuserid, server, operators, commanddict)).start()
 
     def logCommand(commandid,twitchuserid,requestername,message,parameters=None,commandtype=None,returnid=None):
         session = Session(engine)
