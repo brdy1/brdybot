@@ -22,6 +22,8 @@ from sqlalchemy.orm import aliased
 import re
 from sqlalchemy.dialects.postgresql import INTERVAL
 from app import getCommands, getTwitchID,insert,update,delete,Session,func
+from datetime import datetime
+from datetime import timedelta
 
 dbschema='pokemon,bot'
 config = configparser.ConfigParser()
@@ -39,8 +41,8 @@ Base.metadata.create_all(engine)
 
 
 def main():
-    conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
-    commanddict = Setup.getCommandDict()
+    conn, token, user, readbuffer, server, token = Setup.getConnectionVariables() ### Make global?
+    commanddict = Setup.getCommandDict() ### Make global?
     twitchusers = Setup.getChannels()
     Setup.updateTwitchNames()
     #twitchusers = [(1236810,),]
@@ -49,8 +51,9 @@ def main():
         #operators = {'brdy':1236810}
         operators = Setup.getOperants(twitchuserid)
         #create a listening thread
-        # print("create listening thread")
+        #print("create listening thread")
         threading.Thread(target=Bot.ircListen, args=(conn, token, user, twitchuserid, server, operators, commanddict)).start()
+        ### Name the threads for each channel; give myself access to a command prompt where I can reset a thread if I need to
         sleep(2.2)
 
 class Bot():
@@ -65,13 +68,13 @@ class Bot():
             server.send(bytes('PASS ' + token + '\r\n', 'utf-8'))
             server.send(bytes('NICK ' + botName + '\r\n', 'utf-8'))
             server.send(bytes('JOIN #' + channel + '\r\n', 'utf-8'))
+            message = None
             #listening loop
             while listenFlag:
                 try:
                     commandlist = '|'.join(commandDict)
                     regexpression = r'^:[a-zA-Z0-9_]{3,25}![a-zA-Z0-9_]{3,25}@([a-zA-Z0-9_]{3,25})\.tmi\.twitch\.tv\s+PRIVMSG\s+#[a-zA-Z0-9_]{3,25}\s+:!('+commandlist+')\s(.*?)$'
                     pattern = re.compile(regexpression, re.M)
-                    message = None
                     response = server.recv(2048).decode('utf-8')
                     if len(response) == 0:
                         continue
@@ -85,8 +88,12 @@ class Bot():
                                 permissions = (command != 'join' and ((requestername in operators.values()) or (requestername in [channel,'brdy']))) or (channel == botname) or (command == "botinfo")
                                 if (permissions):
                                     message,returnid,commandid,commandtype = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
-                                    if not Bot.lastMessageCheck(twitchuserid,message):
+                                    timeDiff = datetime.now() - messageTime
+                                    timeDiff = timeDiff.total_seconds()
+                                    if not (timeDiff <= 2 and message == lastMessage):
                                         Bot.chatMessage(message,channel,server)
+                                        lastMessage = message
+                                    messageTime = datetime.now()
                                     ccrid = Bot.logCommand(commandid,twitchuserid,requestername,message,parameters,commandtype,returnid)
                                     operators = Setup.getOperants(twitchuserid)
                                     commandDict = Setup.getCommandDict()
