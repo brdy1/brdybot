@@ -76,6 +76,7 @@ class Bot():
                     regexpression = r'^:[a-zA-Z0-9_]{3,25}![a-zA-Z0-9_]{3,25}@([a-zA-Z0-9_]{3,25})\.tmi\.twitch\.tv\s+PRIVMSG\s+#[a-zA-Z0-9_]{3,25}\s+:!('+commandlist+')\s(.*?)$'
                     pattern = re.compile(regexpression, re.M)
                     response = server.recv(2048).decode('utf-8')
+                    messageTime = datetime(1990,1,1)
                     if len(response) == 0:
                         continue
                     if "PING" in str(response):
