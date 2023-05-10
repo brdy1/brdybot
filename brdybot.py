@@ -44,7 +44,7 @@ def main():
     conn, token, user, readbuffer, server, token = Setup.getConnectionVariables() ### Make global?
     commanddict = Setup.getCommandDict() ### Make global?
     twitchusers = Setup.getChannels()
-    Setup.updateTwitchNames()
+    #Setup.updateTwitchNames()
     #twitchusers = [(1236810,),]
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
