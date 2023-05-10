@@ -94,7 +94,7 @@ class Bot():
                                     if not (timeDiff <= 2 and message == lastMessage):
                                         Bot.chatMessage(message,channel,server)
                                         lastMessage = message
-                                    messageTime = datetime.now()
+                                        messageTime = datetime.now()
                                     ccrid = Bot.logCommand(commandid,twitchuserid,requestername,message,parameters,commandtype,returnid)
                                     operators = Setup.getOperants(twitchuserid)
                                     commandDict = Setup.getCommandDict()
