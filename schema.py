@@ -7,7 +7,7 @@ import configparser
 
 
 config = configparser.ConfigParser()
-file = "chatbot.ini"
+file = "C:/Users/Administrator/brdybot/chatbot.ini"
 config.read(file)
 host = config['database']['host']
 database = config['database']['database']

@@ -25,9 +25,9 @@ from app import getCommands, getTwitchID,insert,update,delete,Session,func
 from datetime import datetime
 from datetime import timedelta
 
-dbschema='pokemon,bot'
+dbschema= 'pokemon,bot'
 config = configparser.ConfigParser()
-file = "chatbot.ini"
+file = "C:/Users/Administrator/brdybot/chatbot.ini"
 config.read(file)
 host = config['database']['host']
 database = config['database']['database']
