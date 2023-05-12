@@ -166,21 +166,21 @@ class Bot():
                 commanddict = Setup.getCommandDict()
                 Bot.ircListen(conn, token, user, twitchuserid, server, operators, commanddict)
 
-    def lastMessageCheck(twitchuserid,message):
-        check = False
-        session = Session(engine)
-        try:
-            msgCheck = session.query(ChannelCommandRequest.channeltwitchuserid,ChannelCommandRequest.channelcommandrequestreturn).\
-                filter(ChannelCommandRequest.channeltwitchuserid == twitchuserid,ChannelCommandRequest.channelcommandrequestreturn == message,(func.now()-ChannelCommandRequest.channelcommandrequesttime <= func.cast('2 second', INTERVAL))).\
-                order_by(ChannelCommandRequest.channelcommandrequesttime.desc()).first()
-        except:
-            traceback.print_exc()
-            session.rollback()
-        finally:
-            session.close()
-        if msgCheck:
-            check = True
-        return check
+    # def lastMessageCheck(twitchuserid,message):
+    #     check = False
+    #     session = Session(engine)
+    #     try:
+    #         msgCheck = session.query(ChannelCommandRequest.channeltwitchuserid,ChannelCommandRequest.channelcommandrequestreturn).\
+    #             filter(ChannelCommandRequest.channeltwitchuserid == twitchuserid,ChannelCommandRequest.channelcommandrequestreturn == message,(func.now()-ChannelCommandRequest.channelcommandrequesttime <= func.cast('2 second', INTERVAL))).\
+    #             order_by(ChannelCommandRequest.channelcommandrequesttime.desc()).first()
+    #     except:
+    #         traceback.print_exc()
+    #         session.rollback()
+    #     finally:
+    #         session.close()
+    #     if msgCheck:
+    #         check = True
+    #     return check
 
     def chatMessage(messageString, channel, server):
         x = 1
