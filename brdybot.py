@@ -225,7 +225,7 @@ class Bot():
     def logException(errortype,twitchuserid):
         now = datetime.now()
         channel = Bot.getTwitchUserName(twitchuserid)
-        with open('errorlog.txt', 'a') as f:
+        with open('"C:/Users/Administrator/brdybot/errorlog.txt', 'a') as f:
             f.write(str(now)+' | '+errortype+' | '+str(twitchuserid)+' | '+str(channel)+'\r\n')
         # conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
         # operators = Setup.getOperants(twitchuserid)
@@ -517,7 +517,7 @@ class Setup():
         #parameters for twitch irc server
         connection_data = ('irc.chat.twitch.tv', 6667)
         config = configparser.ConfigParser()
-        file = "chatbot.ini"
+        file = "C:/Users/Administrator/brdybot/chatbot.ini"
         config.read(file)
         token = config['chatbot']['token']
         botName = botname
