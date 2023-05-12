@@ -39,6 +39,7 @@ Base = declarative_base(engine)
 
 Base.metadata.create_all(engine)
 
+lock = threading.Lock()
 
 def main():
     conn, token, user, readbuffer, server, token = Setup.getConnectionVariables() ### Make global?
@@ -72,7 +73,7 @@ def main():
         if count/tucount == 1 and not flagdone:
             print('100%')
             flagdone=True
-        sleep(2)
+        sleep(2.5)
 
 class Bot():
     def ircListen(conn, token, botName, twitchuserid, server, operators, commandDict):
@@ -107,7 +108,9 @@ class Bot():
                                     parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")
                                     permissions = (command != 'join' and ((requestername in operators.values()) or (requestername in [channel,'brdy']))) or (channel == botname) or (command == "botinfo")
                                     if (permissions):
+                                        lock.acquire()
                                         message,returnid,commandid,commandtype = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
+                                        lock.release()
                                         timeDiff = datetime.now() - messageTime
                                         timeDiff = timeDiff.total_seconds()
                                         if not (timeDiff <= 2 and message == lastMessage):
@@ -157,6 +160,7 @@ class Bot():
                         errortype = "OtherError"
                         listenFlag = False
         finally:
+            traceback.print_exc()
             if not listenFlag:
                 Bot.logException(errortype,twitchuserid)
                 commanddict = Setup.getCommandDict()
