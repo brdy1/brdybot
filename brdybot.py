@@ -46,6 +46,12 @@ def main():
     twitchusers = Setup.getChannels()
     #Setup.updateTwitchNames()
     #twitchusers = [(1236810,),]
+    tucount = len(twitchusers)
+    count = 0
+    flag25 = False
+    flag50 = False
+    flag75 = False
+    flagdone = False
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
         #operators = {'brdy':1236810}
@@ -53,8 +59,20 @@ def main():
         #create a listening thread
         #print("create listening thread")
         threading.Thread(target=Bot.ircListen, args=(conn, token, user, twitchuserid, server, operators, commanddict)).start()
-        ### Name the threads for each channel; give myself access to a command prompt where I can reset a thread if I need to
-        sleep(2.2)
+        count+=1
+        if count/tucount > .25 and not flag25:
+            print('25%')
+            flag25=True
+        if count/tucount > .5 and not flag50:
+            print('50%')
+            flag50=True
+        if count/tucount > .75 and not flag75:
+            print('75%')
+            flag75=True
+        if count/tucount == 1 and not flagdone:
+            print('100%')
+            flagdone=True
+        sleep(2)
 
 class Bot():
     def ircListen(conn, token, botName, twitchuserid, server, operators, commandDict):
