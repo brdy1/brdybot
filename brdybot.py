@@ -108,9 +108,7 @@ class Bot():
                                     parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")
                                     permissions = (command != 'join' and ((requestername in operators.values()) or (requestername in [channel,'brdy']))) or (channel == botname) or (command == "botinfo")
                                     if (permissions):
-                                        lock.acquire()
                                         message,returnid,commandid,commandtype = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
-                                        lock.release()
                                         timeDiff = datetime.now() - messageTime
                                         timeDiff = timeDiff.total_seconds()
                                         if not (timeDiff <= 2 and message == lastMessage):
