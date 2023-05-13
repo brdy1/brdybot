@@ -23,7 +23,6 @@ import re
 from sqlalchemy.dialects.postgresql import INTERVAL
 from app import getCommands, getTwitchID,insert,update,delete,Session,func
 from datetime import datetime
-from datetime import timedelta
 
 dbschema= 'pokemon,bot'
 config = configparser.ConfigParser()
@@ -38,8 +37,6 @@ engine = create_engine('postgresql+psycopg2://'+user+':'+password+'@'+host+':543
 Base = declarative_base(engine)
 
 Base.metadata.create_all(engine)
-
-lock = threading.Lock()
 
 def main():
     conn, token, user, readbuffer, server, token = Setup.getConnectionVariables() ### Make global?
@@ -73,7 +70,7 @@ def main():
         if count/tucount == 1 and not flagdone:
             print('100%')
             flagdone=True
-        sleep(2.5)
+        sleep(2.2)
 
 class Bot():
     def ircListen(conn, token, botName, twitchuserid, server, operators, commandDict):
