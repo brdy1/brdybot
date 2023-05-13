@@ -119,62 +119,50 @@ class Bot():
                                     traceback.print_exc()
                                 sleep(1)
                     except ConnectionResetError:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "ConnectionResetError"
                         listenFlag = False
                     except ConnectionAbortedError:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "ConnectionAbortedError"
                         listenFlag = False
                     except ConnectionRefusedError:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "ConnectionRefusedError"
                         listenFlag = False
                     except TimeoutError:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "TimeoutError"
                         listenFlag = False
                     except IndexError:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "IndexError"
                         listenFlag = False
                     except KeyError:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "KeyError"
                         listenFlag = False
                     except RuntimeError:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "RuntimeError"
                         listenFlag = False
                     except SystemExit:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "SystemExit"
                         listenFlag = False
                     except ValueError:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "ValueError"
                         listenFlag = False
                     except BrokenPipeError:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "BrokenPipeError"
                         listenFlag = False
                     except FileNotFoundError:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "FileNotFoundError"
                         listenFlag = False
                     except Exception:
-                        print("Channel: "+channel)
                         traceback.print_exc()
                         errortype = "OtherError"
                         listenFlag = False
