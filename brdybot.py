@@ -208,7 +208,7 @@ class Bot():
     def logException(errortype,twitchuserid):
         now = datetime.now()
         channel = Bot.getTwitchUserName(twitchuserid)
-        with open('"C:/Users/Administrator/brdybot/errorlog.txt', 'a') as f:
+        with open('C:/Users/Administrator/brdybot/errorlog.txt', 'a') as f:
             f.write(str(now)+' | '+errortype+' | '+str(twitchuserid)+' | '+str(channel)+'\r\n')
         # conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
         # operators = Setup.getOperants(twitchuserid)
