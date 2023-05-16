@@ -11,6 +11,8 @@ import socket
 import psycopg2
 #this is for doing cute equations
 import math
+#sys for exiting threads?
+import sys
 #for multithreading for additional channels
 import threading
 #traceback is for error handling/printing so i can figure out what went wrong
@@ -38,6 +40,8 @@ Base = declarative_base(engine)
 
 Base.metadata.create_all(engine)
 
+lock = threading.Lock()
+
 def main():
     conn, token, user, readbuffer, server, token = Setup.getConnectionVariables() ### Make global?
     commanddict = Setup.getCommandDict() ### Make global?
@@ -56,7 +60,8 @@ def main():
         operators = Setup.getOperants(twitchuserid)
         #create a listening thread
         #print("create listening thread")
-        threading.Thread(target=Bot.ircListen, args=(conn, token, user, twitchuserid, server, operators, commanddict)).start()
+        channel = Bot.getTwitchUserName(twitchuserid)
+        threading.Thread(target=Bot.ircListen, name=channel, args=(conn, channel, token, user, twitchuserid, server, operators, commanddict)).start()
         count+=1
         if count/tucount > .25 and not flag25:
             print('25%')
@@ -73,10 +78,9 @@ def main():
         sleep(2.2)
 
 class Bot():
-    def ircListen(conn, token, botName, twitchuserid, server, operators, commandDict):
+    def ircListen(conn, channel, token, botName, twitchuserid, server, operators, commandDict):
         try:
             listenFlag = True
-            channel = Bot.getTwitchUserName(twitchuserid)
             # channel = 'brdy'
             #joining the channel
             if channel:
@@ -119,75 +123,52 @@ class Bot():
                                     traceback.print_exc()
                                 sleep(1)
                     except ConnectionResetError:
-                        traceback.print_exc()
                         errortype = "ConnectionResetError"
                         listenFlag = False
                     except ConnectionAbortedError:
-                        traceback.print_exc()
                         errortype = "ConnectionAbortedError"
                         listenFlag = False
                     except ConnectionRefusedError:
-                        traceback.print_exc()
                         errortype = "ConnectionRefusedError"
                         listenFlag = False
                     except TimeoutError:
-                        traceback.print_exc()
                         errortype = "TimeoutError"
                         listenFlag = False
                     except IndexError:
-                        traceback.print_exc()
                         errortype = "IndexError"
                         listenFlag = False
                     except KeyError:
-                        traceback.print_exc()
                         errortype = "KeyError"
                         listenFlag = False
                     except RuntimeError:
-                        traceback.print_exc()
                         errortype = "RuntimeError"
                         listenFlag = False
                     except SystemExit:
-                        traceback.print_exc()
                         errortype = "SystemExit"
                         listenFlag = False
                     except ValueError:
-                        traceback.print_exc()
                         errortype = "ValueError"
                         listenFlag = False
                     except BrokenPipeError:
-                        traceback.print_exc()
                         errortype = "BrokenPipeError"
                         listenFlag = False
                     except FileNotFoundError:
-                        traceback.print_exc()
                         errortype = "FileNotFoundError"
                         listenFlag = False
                     except Exception:
-                        traceback.print_exc()
                         errortype = "OtherError"
                         listenFlag = False
+                    finally:
+                        if not listenFlag:
+                            print(channel)
+                            print('-------------------')
+                            Bot.logException(errortype,twitchuserid)
+                            commanddict = Setup.getCommandDict()
+                            threading.Thread(target=Bot.ircListen, name=channel, args=(conn, channel, token, user, twitchuserid, server, operators, commanddict)).start()
+        except:
+            traceback.print_exc()
         finally:
-            if not listenFlag:
-                print('-------------------')
-                Bot.logException(errortype,twitchuserid)
-                commanddict = Setup.getCommandDict()
-                Bot.ircListen(conn, token, user, twitchuserid, server, operators, commanddict)
-
-    # def lastMessageCheck(twitchuserid,message):
-    #     check = False
-    #     session = Session(engine)
-    #     try:
-    #         msgCheck = session.query(ChannelCommandRequest.channeltwitchuserid,ChannelCommandRequest.channelcommandrequestreturn).\
-    #             filter(ChannelCommandRequest.channeltwitchuserid == twitchuserid,ChannelCommandRequest.channelcommandrequestreturn == message,(func.now()-ChannelCommandRequest.channelcommandrequesttime <= func.cast('2 second', INTERVAL))).\
-    #             order_by(ChannelCommandRequest.channelcommandrequesttime.desc()).first()
-    #     except:
-    #         traceback.print_exc()
-    #         session.rollback()
-    #     finally:
-    #         session.close()
-    #     if msgCheck:
-    #         check = True
-    #     return check
+            sys.exit()
 
     def chatMessage(messageString, channel, server):
         x = 1
@@ -208,8 +189,10 @@ class Bot():
     def logException(errortype,twitchuserid):
         now = datetime.now()
         channel = Bot.getTwitchUserName(twitchuserid)
+        lock.acquire()
         with open('C:/Users/Administrator/brdybot/errorlog.txt', 'a') as f:
             f.write(str(now)+' | '+errortype+' | '+str(twitchuserid)+' | '+str(channel)+'\r\n')
+        lock.release()
         # conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
         # operators = Setup.getOperants(twitchuserid)
         # commanddict = Setup.getCommandDict()
@@ -228,7 +211,9 @@ class Bot():
             if returnid:
                values[commandtype+'id'] = returnid
             stmt = insert(ChannelCommandRequest).values(values)
-            ccrid = session.execute(stmt).inserted_primary_key[0]
+            ccridr = session.execute(stmt).inserted_primary_key
+            for ccridi in ccridr:
+                ccrid = ccridi
             session.commit()
         except:
             session.rollback()
@@ -271,10 +256,10 @@ class Bot():
                         if maxparam is not None:
                             message += " and "
                     if maxparam is not None:
-                        message += "at max"+str(maxparam).lower()
+                        message += "at max "+str(maxparam).lower()
                     if minparam is None and maxparam is None:
                         message += "no"
-                    message += " parameters. Use '!help "+command+" for more help."
+                    message += " parameters. Use '!help "+command+"' for more help."
                     return message,None,commandid,commandtype
         params = {  'twitchuserid':twitchuserid,
                     'requestername':requestername
@@ -329,7 +314,9 @@ class Bot():
         ## therefore, update the TwitchUser record using the requestername
         try:
             inserttwitchid = insert(TwitchUser).values(twitchuserid=twitchuserid,twitchusername=requestername.lower()).on_conflict_do_nothing(index_elements=['twitchuserid'])
-            insertedtwitchuserid = session.execute(inserttwitchid).inserted_primary_key[0]
+            insertedtwitchuseridr = session.execute(inserttwitchid).inserted_primary_key
+            for insertedtwitchuseridi in insertedtwitchuseridr:
+                insertedtwitchuserid = insertedtwitchuseridi
             session.commit()
         except:
             # print("error inserting twitchuser")
@@ -341,23 +328,25 @@ class Bot():
         try:
             try:
                 insertchannelid = insert(Channel).values(twitchuserid=twitchuserid,gameid=10).on_conflict_do_nothing(index_elements=['twitchuserid'])
-                channelid = session.execute(insertchannelid).inserted_primary_key[0]
+                channelidr = session.execute(insertchannelid).inserted_primary_key
+                for channelidi in channelidr:
+                    channelid = channelidi
                 session.commit()
                 successflag = True
             except:
                 # print("error inserting channel")
                 session.rollback()
-                traceback.print_exc()
             try:
                 insertoperant = insert(ChannelOperant).values(channeltwitchuserid=twitchuserid,operanttwitchuserid=twitchuserid,operanttypeid=1)
-                channeloperantid = session.execute(insertoperant).inserted_primary_key[0]
+                channeloperantidr = session.execute(insertoperant).inserted_primary_key
+                for channeloperantidi in channeloperantidr:
+                    channeloperantid = channeloperantidi
                 session.commit()
                 # set the successflag to true
                 successflag = True
             except:
                 # print("error inserting operant")
                 session.rollback()
-                traceback.print_exc()
             finally:
                 session.close()
         finally:
@@ -370,18 +359,18 @@ class Bot():
             except:
                 # print("error deleting channeldeletion record")
                 session.rollback()
-                traceback.print_exc()
             finally:
                 session.close()
         ## close the session
         session.close()
         ## By this point, the user should have a record in the TwitchUser table and the Channel table and NO record in the ChannelDeletion table.
-        ## Let's create a new thread as long as there was a success event
+        ## Let's kill the thread by name and create a new thread
         if successflag:
             conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
+            channel = Bot.getTwitchUserName(twitchuserid)
             commanddict = Setup.getCommandDict()
             operantDict = Setup.getOperants(twitchuserid)
-            threading.Thread(target=Bot.ircListen, args=(conn, token, user, twitchuserid, server, operantDict, commanddict)).start()
+            threading.Thread(target=Bot.ircListen, args=(conn, channel, token, user, twitchuserid, server, operantDict, commanddict)).start()
             message = '@'+requestername+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
         else:
             message = '@'+requestername+""" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."""
