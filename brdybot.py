@@ -42,10 +42,10 @@ Base.metadata.create_all(engine)
 
 lock = threading.Lock()
 
-conn, token, user, readbuffer, server, token = Setup.getConnectionVariables() ### Make global?
 
 def main():
     commanddict = Setup.getCommandDict() ### Make global?
+    conn, token, user, readbuffer, server, token = Setup.getConnectionVariables() ### Make global?
     twitchusers = Setup.getChannels()
     #Setup.updateTwitchNames()
     #twitchusers = [(1236810,),]
@@ -55,7 +55,7 @@ def main():
     flag50 = False
     flag75 = False
     flagdone = False
-    threading.Thread(target=Bot.ircListen, name='brdybot', args=('brdybot','brdybot',687207983,None,commanddict))
+    threading.Thread(target=Bot.ircListen, name='brdybot', args=(conn, token, user, server, readbuffer, 'brdybot','brdybot',687207983,None,commanddict))
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
         #operators = {'brdy':1236810}
@@ -63,7 +63,7 @@ def main():
         #create a listening thread
         #print("create listening thread")
         channel = Bot.getTwitchUserName(twitchuserid)
-        threading.Thread(target=Bot.ircListen, name=channel, args=(channel, 'brdybot', twitchuserid, operators, commanddict)).start()
+        threading.Thread(target=Bot.ircListen, name=channel, args=(conn, token, user, server, readbuffer, channel, 'brdybot', twitchuserid, operators, commanddict)).start()
         count+=1
         if count/tucount > .25 and not flag25:
             print('25%')
@@ -80,7 +80,7 @@ def main():
         sleep(2.2)
 
 class Bot():
-    def ircListen(channel, botName, twitchuserid, operators, commandDict):
+    def ircListen(conn, token, user, server, readbuffer, channel, botName, twitchuserid, operators, commandDict):
         try:
             listenFlag = True
             # channel = 'brdy'
@@ -166,7 +166,7 @@ class Bot():
                             print('-------------------')
                             Bot.logException(errortype,twitchuserid)
                             commanddict = Setup.getCommandDict()
-                            threading.Thread(target=Bot.ircListen, name=channel, args=(conn, channel, token, user, twitchuserid, server, operators, commanddict)).start()
+                            threading.Thread(target=Bot.ircListen, name=channel, args=(conn, token, user, server, readbuffer, channel, 'brdybot', twitchuserid, operators, commanddict)).start()
         except:
             traceback.print_exc()
         finally:
@@ -372,7 +372,7 @@ class Bot():
             conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
             commanddict = Setup.getCommandDict()
             operantDict = Setup.getOperants(twitchuserid)
-            threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, requestername, token, user, twitchuserid, server, operantDict, commanddict)).start()
+            threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, token, user, server, readbuffer, channel, 'brdybot', twitchuserid, operators, commanddict)).start()
             message = '@'+requestername+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
         else:
             message = '@'+requestername+""" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."""
