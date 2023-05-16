@@ -163,6 +163,7 @@ class Bot():
                     finally:
                         if not listenFlag:
                             print(channel)
+                            print(errortype)
                             print('-------------------')
                             Bot.logException(errortype,twitchuserid)
                             commanddict = Setup.getCommandDict()
