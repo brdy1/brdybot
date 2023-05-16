@@ -44,6 +44,8 @@ lock = threading.Lock()
 
 def main():
     conn, token, user, readbuffer, server, token = Setup.getConnectionVariables() ### Make global?
+    server = socket.socket()
+    server.connect(conn)
     commanddict = Setup.getCommandDict() ### Make global?
     twitchusers = Setup.getChannels()
     #Setup.updateTwitchNames()
@@ -54,6 +56,7 @@ def main():
     flag50 = False
     flag75 = False
     flagdone = False
+    threading.Thread(target=Bot.ircListen, name='brdybot', args=(conn,'brdybot',token,user,687207983,server,None,commanddict))
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
         #operators = {'brdy':1236810}
@@ -84,8 +87,6 @@ class Bot():
             # channel = 'brdy'
             #joining the channel
             if channel:
-                server = socket.socket()
-                server.connect(conn)
                 server.send(bytes('PASS ' + token + '\r\n', 'utf-8'))
                 server.send(bytes('NICK ' + botName + '\r\n', 'utf-8'))
                 server.send(bytes('JOIN #' + channel + '\r\n', 'utf-8'))
@@ -277,8 +278,9 @@ class Bot():
         else:
             try:
                 response = requests.get(url,params=params)
-                message = json.loads(response.text)['message']
-                returnid = json.loads(response.text)['returnid']
+                jsonpackage = json.loads(response.text)
+                message = jsonpackage['message']
+                returnid = jsonpackage['returnid']
                 # print(message)
             except:
                 message = "There was an error executing the "+command+" command with the given parameters. Check your parameters and try again. Use '!help "+command+"' for more help."
@@ -364,13 +366,12 @@ class Bot():
         ## close the session
         session.close()
         ## By this point, the user should have a record in the TwitchUser table and the Channel table and NO record in the ChannelDeletion table.
-        ## Let's kill the thread by name and create a new thread
+        ## Let's create a new thread
         if successflag:
             conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
-            channel = Bot.getTwitchUserName(twitchuserid)
             commanddict = Setup.getCommandDict()
             operantDict = Setup.getOperants(twitchuserid)
-            threading.Thread(target=Bot.ircListen, args=(conn, channel, token, user, twitchuserid, server, operantDict, commanddict)).start()
+            threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, requestername, token, user, twitchuserid, server, operantDict, commanddict)).start()
             message = '@'+requestername+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
         else:
             message = '@'+requestername+""" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."""
@@ -432,12 +433,13 @@ class Setup():
         session = Session(engine)
         try:
             deletedchannels = session.query(ChannelDeletion.twitchuserid)
-            twitchusers = session.query(Channel.twitchuserid).filter(Channel.twitchuserid.notin_(deletedchannels)).order_by(Channel.twitchuserid).all()
+            twitchusers = session.query(Channel.twitchuserid).filter(Channel.twitchuserid.notin_(deletedchannels),Channel.twitchuserid.notin_([687207983])).order_by(Channel.twitchuserid).all()
         except:
             session.rollback()
             traceback.print_exc()
         finally:
             session.close()
+        twitchusers = list(twitchusers)
         # print(twitchusers)
         return twitchusers
 
