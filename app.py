@@ -1,6 +1,7 @@
 import math
 from random import Random
 from flask import Flask
+from flask import session as sesh
 from flask_restful import Api, request
 from sqlalchemy.orm import Session,aliased
 from sqlalchemy import create_engine, func, update, delete, and_, or_, null, case, literal_column
@@ -131,11 +132,9 @@ def getCoverage(typelist,twitchuserid=None,all=True):
         typeids = []
         for typename in typelist:
             typeindex = typelist.index(typename)
-            typeShtein = func.levenshtein(Type.typename,typename.title())
-            typename = session.query(Type.typename).filter(Type.generationid <= generation).order_by(typeShtein).first()[0]
-
             typeShtein = func.levenshtein(Type.typename,typename)
             typeid,typename = session.query(Type.typeid,Type.typename).filter(Type.generationid <= generation).order_by(typeShtein).first()
+            ### Pull all types and typeids, sort by edit distance, then pull top hit for each edit distance
             typeids.append(typeid)
             typelist[typeindex] = typename
         validSel = [
@@ -624,10 +623,9 @@ def insertOperant(operantlist):
         print(operanttwitchuserid)
         newtwitchusers.append({'twitchuserid':operanttwitchuserid,'twitchusername':operant})
         newchannelperants.append({"channeltwitchuserid":channeltwitchuserid,"operanttwitchuserid":operanttwitchuserid,"operanttypeid":2})
-       
         print(newchannelperants)
     try:
-        stmt = (insert(TwitchUser).values(newtwitchusers))
+        stmt = (insert(TwitchUser).values(newtwitchusers)).on_conflict_do_nothing(index_elements=['twitchuserid'])
         session.execute(stmt)
         session.commit()
     except:
@@ -635,7 +633,7 @@ def insertOperant(operantlist):
     finally:
         session.close()
     try:
-        stmt = (insert(ChannelOperant).values(newchannelperants).on_conflict_do_nothing(constraint='pk_channeloperant'))
+        stmt = insert(ChannelOperant).values(newchannelperants)
         session.execute(stmt)
         session.commit()
     except:
@@ -690,9 +688,6 @@ def randoEvolution(parameters):
                                 join(PokemonNickname,Pokemon.pokemonid == PokemonNickname.pokemonid,isouter=True).\
                                 filter(PokemonGameAvailability.pokemonavailabilitytypeid != 18,Channel.twitchuserid == twitchuserid).\
                                 order_by(monShtein).first()
-        print(monid)
-        print(monName)
-        print(generation)
         monid,multiFlag = session.query(RandomizerEvolutionCounts.basepokemonid,func.count(func.distinct(RandomizerEvolutionCounts.vanillatargetid))).\
                                 join(GameGroup,RandomizerEvolutionCounts.gamegroupid == GameGroup.gamegroupid).\
                                 filter(RandomizerEvolutionCounts.basepokemonid == monid,GameGroup.generationid == generation).\

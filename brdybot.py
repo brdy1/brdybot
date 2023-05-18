@@ -170,8 +170,6 @@ class Bot():
                             threading.Thread(target=Bot.ircListen, name=channel, args=(conn, token, user, server, readbuffer, channel, 'brdybot', twitchuserid, operators, commanddict)).start()
         except:
             traceback.print_exc()
-        finally:
-            sys.exit()
 
     def chatMessage(messageString, channel, server):
         x = 1
@@ -373,7 +371,7 @@ class Bot():
             conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
             commanddict = Setup.getCommandDict()
             operantDict = Setup.getOperants(twitchuserid)
-            threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, token, user, server, readbuffer, channel, 'brdybot', twitchuserid, operators, commanddict)).start()
+            threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, token, user, server, readbuffer, requestername, 'brdybot', twitchuserid, operantDict, commanddict)).start()
             message = '@'+requestername+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
         else:
             message = '@'+requestername+""" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."""
