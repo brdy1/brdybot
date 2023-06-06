@@ -110,7 +110,7 @@ def getBST(monname):
     # print(message)
     return {'message':message,'returnid':monid}
 
-@app.route("/api/v2.0/evocoverage/<typelist>")
+@app.route("/api/v2.0/fecoverage/<typelist>")
 def getEvolvedCoverage(typelist,twitchuserid=None):
     if not twitchuserid:
         twitchuserid = int(request.args.get("twitchuserid"))
@@ -700,8 +700,8 @@ def randoEvolution(parameters):
         return {'message':"There was an error executing the revo command.",'returnid':monid}
     finally:
         session.close()
-    if generation not in [1,2,3,4,5]:
-        message = "This command is not yet implemented for games higher than generation 5."
+    if generation not in [1,2,3,4,5,6]:
+        message = "This command is not yet implemented for games higher than generation 6."
         return {'message':message,'returnid':monid}
     if multiFlag > 1:
         try:
