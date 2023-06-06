@@ -292,7 +292,7 @@ class Bot():
         ## Default successflag to false
         successflag = False
         ## fetch twitch userid from twitch api based on requester name
-        twitchuserid = getTwitchID(requestername)
+        twitchuserid = requests.get("http://127.0.0.1:5000/api/resource/"+requestername)
         #########
         ## try to insert a new record to the TwitchUser table
         ## ###

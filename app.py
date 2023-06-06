@@ -900,6 +900,7 @@ def removeOperant(removelist):
     # print(message)
     return {'message':message,'returnid':None}
 
+@app.route("/api/resource/twitchid/<username>")
 def getTwitchID(username):
     file = 'chatbot.ini'
     config.read(file)
