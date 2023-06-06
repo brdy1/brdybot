@@ -252,8 +252,11 @@ class Bot():
         # print(twitchuserid)
         # print(requestername)
         if command == 'join' and twitchuserid == 687207983:
-            message = Bot.addClient(requestername)
-            returnid = None
+            try:
+                message = Bot.addClient(requestername)
+                returnid = None
+            except:
+                message = "There was an error joining your channel. Sorry."
         elif command == 'brdybotleave' and twitchuserid == getTwitchID(requestername):
             message,returnid = Bot.removeChannel(twitchuserid)
         else:
