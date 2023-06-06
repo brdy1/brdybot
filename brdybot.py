@@ -295,7 +295,7 @@ class Bot():
         try:
             twitchuserid = int(requests.get("http://127.0.0.1:5000/api/resource/twitchid/"+requestername))
         except:
-            return "Error fetching userid for "+requestername
+            return "Error fetching userid for "+requestername+". "+str(traceback.format_exc())
         #########
         try:
             inserttwitchid = insert(TwitchUser).values(twitchuserid=twitchuserid,twitchusername=requestername.lower())
