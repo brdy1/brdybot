@@ -90,7 +90,7 @@ class Bot():
                                 try:
                                     userMessage = re.sub(' +',' ',userMessage)
                                     parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")
-                                    permissions = (command != 'join' and ((requestername in operators.values()) or (requestername in [channel,'brdy']))) or (channel == botName) or (command == "botinfo")
+                                    permissions = (command != 'join' and ((requestername in operators.values()) or (requestername in [channel,'brdy']))) or (channel == botname) or (command == "botinfo")
                                     if (permissions):
                                         message,returnid,commandid,commandtype = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
                                         timeDiff = datetime.now() - messageTime
