@@ -49,8 +49,7 @@ def main():
     twitchusers = Setup.getChannels()
     #Setup.updateTwitchNames()
     #twitchusers = [(1236810,),]
-    botOperators = Setup.getOperants(687207983)
-    threading.Thread(target=Bot.ircListen, name='brdybot', args=(conn, token, user, server, readbuffer,'brdybot',687207983,botOperators,commanddict))
+    twitchusers.insert(0,687207983)
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
         #operators = {'brdy':1236810}
