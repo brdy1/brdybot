@@ -292,7 +292,7 @@ class Bot():
         ## Default successflag to false
         successflag = False
         ## fetch twitch userid from twitch api based on requester name
-        twitchuserid = requests.get("http://127.0.0.1:5000/api/resource/"+requestername)
+        twitchuserid = int(requests.get("http://127.0.0.1:5000/api/resource/"+requestername))
         #########
         ## try to insert a new record to the TwitchUser table
         ## ###
@@ -354,7 +354,7 @@ class Bot():
             threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, token, user, server, readbuffer, requestername, twitchuserid, operantDict, commanddict)).start()
             message = '@'+requestername+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
         else:
-            message = '@'+requestername+""" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."""
+            message = '@'+requestername+""" UserID: """+str(twitchuserid)+"- Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."""
         return message
 
     def removeChannel(twitchuserid):
