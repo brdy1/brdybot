@@ -293,7 +293,7 @@ class Bot():
         successflag = False
         ## fetch twitch userid from twitch api based on requester name
         try:
-            twitchuserid = int(requests.get("http://127.0.0.1:5000/api/resource/twitchid/"+requestername))
+            twitchuserid = int(requests.get("http://127.0.0.1:5000/api/resource/twitchid/"+requestername).text)
         except:
             return "Error fetching userid for "+requestername+". "+str(traceback.format_exc()).replace('\r',' ').replace('\n',' ')
         #########
