@@ -295,7 +295,7 @@ class Bot():
         try:
             twitchuserid = int(requests.get("http://127.0.0.1:5000/api/resource/twitchid/"+requestername).text)
         except:
-            return "Error fetching userid for "+requestername+". "+str(traceback.format_exc()).replace('\r',' ').replace('\n',' ')
+            return "Error fetching userid for "+requestername+". "+str(traceback.format_exc()).replace('\r',' ').replace('\n',' ').split('Error:')[1]
         #########
         try:
             inserttwitchid = insert(TwitchUser).values(twitchuserid=twitchuserid,twitchusername=requestername.lower())
@@ -321,8 +321,6 @@ class Bot():
             insertoperant = insert(ChannelOperant).values(channeltwitchuserid=twitchuserid,operanttwitchuserid=twitchuserid,operanttypeid=1)
             channeloperantidr = session.execute(insertoperant).inserted_primary_key
             session.commit()
-            # set the successflag to true
-            successflag = True
         except:
             # print("error inserting operant")
             session.rollback()
@@ -332,8 +330,6 @@ class Bot():
             stmt = delete(ChannelDeletion).where(ChannelDeletion.twitchuserid == twitchuserid)
             session.execute(stmt)
             session.commit()
-            # set the successflag to true
-            successflag = True
         except:
             # print("error deleting channeldeletion record")
             session.rollback()
