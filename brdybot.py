@@ -292,12 +292,11 @@ class Bot():
         ## Default successflag to false
         successflag = False
         ## fetch twitch userid from twitch api based on requester name
-        twitchuserid = int(requests.get("http://127.0.0.1:5000/api/resource/"+requestername))
+        try:
+            twitchuserid = int(requests.get("http://127.0.0.1:5000/api/resource/"+requestername))
+        except:
+            return "Error fetching userid for "+requestername
         #########
-        ## try to insert a new record to the TwitchUser table
-        ## ###
-        ## if there's an error, this means that either their name has changed or they're already an operant in another channel
-        ## therefore, update the TwitchUser record using the requestername
         try:
             inserttwitchid = insert(TwitchUser).values(twitchuserid=twitchuserid,twitchusername=requestername.lower())
             insertedtwitchuseridr = session.execute(inserttwitchid).inserted_primary_key
@@ -309,41 +308,37 @@ class Bot():
             session.close()
         ## try to add the twitchuserid to the Channel table
         try:
-            try:
-                insertchannelid = insert(Channel).values(twitchuserid=twitchuserid,gameid=10)
-                channelidr = session.execute(insertchannelid).inserted_primary_key
-                session.commit()
-                successflag = True
-            except:
-                # print("error inserting channel")
-                session.rollback()
-            finally:
-                session.close()
-            try:
-                insertoperant = insert(ChannelOperant).values(channeltwitchuserid=twitchuserid,operanttwitchuserid=twitchuserid,operanttypeid=1)
-                channeloperantidr = session.execute(insertoperant).inserted_primary_key
-                session.commit()
-                # set the successflag to true
-                successflag = True
-            except:
-                # print("error inserting operant")
-                session.rollback()
-            finally:
-                session.close()
+            insertchannelid = insert(Channel).values(twitchuserid=twitchuserid,gameid=10)
+            channelidr = session.execute(insertchannelid).inserted_primary_key
+            session.commit()
+            successflag = True
+        except:
+            # print("error inserting channel")
+            session.rollback()
         finally:
-            try:
-                stmt = delete(ChannelDeletion).where(ChannelDeletion.twitchuserid == twitchuserid)
-                session.execute(stmt)
-                session.commit()
-                # set the successflag to true
-                successflag = True
-            except:
-                # print("error deleting channeldeletion record")
-                session.rollback()
-            finally:
-                session.close()
-        ## close the session
-        session.close()
+            session.close()
+        try:
+            insertoperant = insert(ChannelOperant).values(channeltwitchuserid=twitchuserid,operanttwitchuserid=twitchuserid,operanttypeid=1)
+            channeloperantidr = session.execute(insertoperant).inserted_primary_key
+            session.commit()
+            # set the successflag to true
+            successflag = True
+        except:
+            # print("error inserting operant")
+            session.rollback()
+        finally:
+            session.close()
+        try:
+            stmt = delete(ChannelDeletion).where(ChannelDeletion.twitchuserid == twitchuserid)
+            session.execute(stmt)
+            session.commit()
+            # set the successflag to true
+            successflag = True
+        except:
+            # print("error deleting channeldeletion record")
+            session.rollback()
+        finally:
+            session.close()
         ## By this point, the user should have a record in the TwitchUser table and the Channel table and NO record in the ChannelDeletion table.
         ## Let's create a new thread
         try:
@@ -357,7 +352,7 @@ class Bot():
                 message = '@'+requestername+" UserID: "+str(twitchuserid)+" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."
             return message
         except:
-            return "Big error. User ID = "+str(twitchuserid)
+            return "Could not join the channel due to an error on my end. User ID = "+str(twitchuserid)
 
     def removeChannel(twitchuserid):
         session = Session(engine)
