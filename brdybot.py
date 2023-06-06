@@ -34,7 +34,7 @@ host = config['database']['host']
 database = config['database']['database']
 user = config['database']['user']
 password = config['database']['password']
-botname = config['chatbot']['username']
+botname = 'brdybot'
 engine = create_engine('postgresql+psycopg2://'+user+':'+password+'@'+host+':5432/'+database,connect_args={'options': '-csearch_path={}'.format(dbschema)})
 Base = declarative_base(engine)
 
@@ -45,17 +45,12 @@ lock = threading.Lock()
 
 def main():
     commanddict = Setup.getCommandDict() ### Make global?
-    conn, token, user, readbuffer, server, token = Setup.getConnectionVariables() ### Make global?
+    conn, token, readbuffer, server, token = Setup.getConnectionVariables() ### Make global?
     twitchusers = Setup.getChannels()
     #Setup.updateTwitchNames()
     #twitchusers = [(1236810,),]
-    tucount = len(twitchusers)
-    count = 0
-    flag25 = False
-    flag50 = False
-    flag75 = False
-    flagdone = False
-    threading.Thread(target=Bot.ircListen, name='brdybot', args=(conn, token, user, server, readbuffer, 'brdybot','brdybot',687207983,None,commanddict))
+    botOperators = Setup.getOperants(687207983)
+    threading.Thread(target=Bot.ircListen, name='brdybot', args=(conn, token, user, server, readbuffer,'brdybot',687207983,botOperators,commanddict))
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
         #operators = {'brdy':1236810}
@@ -63,24 +58,11 @@ def main():
         #create a listening thread
         #print("create listening thread")
         channel = Bot.getTwitchUserName(twitchuserid)
-        threading.Thread(target=Bot.ircListen, name=channel, args=(conn, token, user, server, readbuffer, channel, 'brdybot', twitchuserid, operators, commanddict)).start()
-        count+=1
-        if count/tucount > .25 and not flag25:
-            print('25%')
-            flag25=True
-        if count/tucount > .5 and not flag50:
-            print('50%')
-            flag50=True
-        if count/tucount > .75 and not flag75:
-            print('75%')
-            flag75=True
-        if count/tucount == 1 and not flagdone:
-            print('100%')
-            flagdone=True
+        threading.Thread(target=Bot.ircListen, name=channel, args=(conn, token, user, server, readbuffer, channel, twitchuserid, operators, commanddict)).start()
         sleep(2.2)
 
 class Bot():
-    def ircListen(conn, token, user, server, readbuffer, channel, botName, twitchuserid, operators, commandDict):
+    def ircListen(conn, token, user, server, readbuffer, channel, twitchuserid, operators, commandDict):
         try:
             listenFlag = True
             # channel = 'brdy'
@@ -89,7 +71,7 @@ class Bot():
                 server = socket.socket()
                 server.connect(conn)
                 server.send(bytes('PASS ' + token + '\r\n', 'utf-8'))
-                server.send(bytes('NICK ' + botName + '\r\n', 'utf-8'))
+                server.send(bytes('NICK ' + botname + '\r\n', 'utf-8'))
                 server.send(bytes('JOIN #' + channel + '\r\n', 'utf-8'))
                 messageTime = datetime(1990,1,1)
                 message = None
@@ -109,7 +91,7 @@ class Bot():
                                 try:
                                     userMessage = re.sub(' +',' ',userMessage)
                                     parameters = userMessage.replace("\U000e0000","").replace("\U000e0002","").replace("\U000e001f","").strip().split(" ")
-                                    permissions = (command != 'join' and ((requestername in operators.values()) or (requestername in [channel,'brdy']))) or (channel == botname) or (command == "botinfo")
+                                    permissions = (command != 'join' and ((requestername in operators.values()) or (requestername in [channel,'brdy']))) or (channel == botName) or (command == "botinfo")
                                     if (permissions):
                                         message,returnid,commandid,commandtype = Bot.doCommand(command,commandDict,twitchuserid,requestername,parameters)
                                         timeDiff = datetime.now() - messageTime
@@ -338,6 +320,8 @@ class Bot():
             except:
                 # print("error inserting channel")
                 session.rollback()
+            finally:
+                session.close()
             try:
                 insertoperant = insert(ChannelOperant).values(channeltwitchuserid=twitchuserid,operanttwitchuserid=twitchuserid,operanttypeid=1)
                 channeloperantidr = session.execute(insertoperant).inserted_primary_key
@@ -371,7 +355,7 @@ class Bot():
             conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
             commanddict = Setup.getCommandDict()
             operantDict = Setup.getOperants(twitchuserid)
-            threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, token, user, server, readbuffer, requestername, 'brdybot', twitchuserid, operantDict, commanddict)).start()
+            threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, token, user, server, readbuffer, requestername, botname, twitchuserid, operantDict, commanddict)).start()
             message = '@'+requestername+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
         else:
             message = '@'+requestername+""" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."""
@@ -494,10 +478,9 @@ class Setup():
         file = "C:/Users/Administrator/brdybot/chatbot.ini"
         config.read(file)
         token = config['chatbot']['token']
-        botName = botname
         readbuffer = ''
         server = socket.socket()
-        return connection_data, token, botName, readbuffer, server, token
+        return connection_data, token, readbuffer, server, token
 
 if __name__ == "__main__":
     main()
