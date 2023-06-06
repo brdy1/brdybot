@@ -49,7 +49,7 @@ def main():
     twitchusers = Setup.getChannels()
     #Setup.updateTwitchNames()
     #twitchusers = [(1236810,),]
-    twitchusers.insert(0,(687207983))
+    twitchusers.insert(0,(687207983,))
     for twitchuserid in twitchusers:
         twitchuserid = twitchuserid[0]
         #operators = {'brdy':1236810}
