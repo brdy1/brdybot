@@ -301,8 +301,6 @@ class Bot():
         try:
             inserttwitchid = insert(TwitchUser).values(twitchuserid=twitchuserid,twitchusername=requestername.lower()).on_conflict_do_nothing(index_elements=['twitchuserid'])
             insertedtwitchuseridr = session.execute(inserttwitchid).inserted_primary_key
-            for insertedtwitchuseridi in insertedtwitchuseridr:
-                insertedtwitchuserid = insertedtwitchuseridi
             session.commit()
         except:
             # print("error inserting twitchuser")
@@ -315,8 +313,6 @@ class Bot():
             try:
                 insertchannelid = insert(Channel).values(twitchuserid=twitchuserid,gameid=10).on_conflict_do_nothing(index_elements=['twitchuserid'])
                 channelidr = session.execute(insertchannelid).inserted_primary_key
-                for channelidi in channelidr:
-                    channelid = channelidi
                 session.commit()
                 successflag = True
             except:
@@ -327,8 +323,6 @@ class Bot():
             try:
                 insertoperant = insert(ChannelOperant).values(channeltwitchuserid=twitchuserid,operanttwitchuserid=twitchuserid,operanttypeid=1)
                 channeloperantidr = session.execute(insertoperant).inserted_primary_key
-                for channeloperantidi in channeloperantidr:
-                    channeloperantid = channeloperantidi
                 session.commit()
                 # set the successflag to true
                 successflag = True
@@ -357,7 +351,7 @@ class Bot():
             conn, token, user, readbuffer, server, token = Setup.getConnectionVariables()
             commanddict = Setup.getCommandDict()
             operantDict = Setup.getOperants(twitchuserid)
-            threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, token, user, server, readbuffer, requestername, botname, twitchuserid, operantDict, commanddict)).start()
+            threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, token, user, server, readbuffer, requestername, twitchuserid, operantDict, commanddict)).start()
             message = '@'+requestername+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
         else:
             message = '@'+requestername+""" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."""
