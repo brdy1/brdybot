@@ -299,7 +299,7 @@ class Bot():
         ## if there's an error, this means that either their name has changed or they're already an operant in another channel
         ## therefore, update the TwitchUser record using the requestername
         try:
-            inserttwitchid = insert(TwitchUser).values(twitchuserid=twitchuserid,twitchusername=requestername.lower()).on_conflict_do_nothing(index_elements=['twitchuserid'])
+            inserttwitchid = insert(TwitchUser).values(twitchuserid=twitchuserid,twitchusername=requestername.lower())
             insertedtwitchuseridr = session.execute(inserttwitchid).inserted_primary_key
             session.commit()
         except:
@@ -311,7 +311,7 @@ class Bot():
         ## try to add the twitchuserid to the Channel table
         try:
             try:
-                insertchannelid = insert(Channel).values(twitchuserid=twitchuserid,gameid=10).on_conflict_do_nothing(index_elements=['twitchuserid'])
+                insertchannelid = insert(Channel).values(twitchuserid=twitchuserid,gameid=10)
                 channelidr = session.execute(insertchannelid).inserted_primary_key
                 session.commit()
                 successflag = True
