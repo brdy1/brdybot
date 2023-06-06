@@ -305,7 +305,6 @@ class Bot():
         except:
             # print("error inserting twitchuser")
             session.rollback()
-            traceback.print_exc()
         finally:
             session.close()
         ## try to add the twitchuserid to the Channel table
@@ -352,7 +351,7 @@ class Bot():
             commanddict = Setup.getCommandDict()
             operantDict = Setup.getOperants(twitchuserid)
             threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, token, user, server, readbuffer, requestername, twitchuserid, operantDict, commanddict)).start()
-            message = '@'+requestername+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
+            message = '@'+requestername+" UserID: "+str(twitchuserid)+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
         else:
             message = '@'+requestername+" UserID: "+str(twitchuserid)+" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."
         return message
