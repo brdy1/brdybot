@@ -45,7 +45,7 @@ lock = threading.Lock()
 
 def main():
     commanddict = Setup.getCommandDict() ### Make global?
-    conn, token, readbuffer, server, token = Setup.getConnectionVariables() ### Make global?
+    conn, token, readbuffer, server = Setup.getConnectionVariables() ### Make global?
     twitchusers = Setup.getChannels()
     #Setup.updateTwitchNames()
     #twitchusers = [(1236810,),]
@@ -57,11 +57,11 @@ def main():
         #create a listening thread
         #print("create listening thread")
         channel = Bot.getTwitchUserName(twitchuserid)
-        threading.Thread(target=Bot.ircListen, name=channel, args=(conn, token, user, server, readbuffer, channel, twitchuserid, operators, commanddict)).start()
+        threading.Thread(target=Bot.ircListen, name=channel, args=(conn, token, server, readbuffer, channel, twitchuserid, operators, commanddict)).start()
         sleep(2.2)
 
 class Bot():
-    def ircListen(conn, token, user, server, readbuffer, channel, twitchuserid, operators, commandDict):
+    def ircListen(conn, token, server, readbuffer, channel, twitchuserid, operators, commandDict):
         try:
             listenFlag = True
             # channel = 'brdy'
@@ -346,15 +346,18 @@ class Bot():
         session.close()
         ## By this point, the user should have a record in the TwitchUser table and the Channel table and NO record in the ChannelDeletion table.
         ## Let's create a new thread
-        if successflag:
-            conn, token, readbuffer, server, token = Setup.getConnectionVariables()
-            commanddict = Setup.getCommandDict()
-            operantDict = Setup.getOperants(twitchuserid)
-            threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, token, server, readbuffer, requestername, twitchuserid, operantDict, commanddict)).start()
-            message = '@'+requestername+" UserID: "+str(twitchuserid)+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
-        else:
-            message = '@'+requestername+" UserID: "+str(twitchuserid)+" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."
-        return message
+        try:
+            if successflag:
+                conn, token, readbuffer, server = Setup.getConnectionVariables()
+                commanddict = Setup.getCommandDict()
+                operantDict = Setup.getOperants(twitchuserid)
+                threading.Thread(target=Bot.ircListen, name=requestername, args=(conn, token, server, readbuffer, requestername, twitchuserid, operantDict, commanddict)).start()
+                message = '@'+requestername+" UserID: "+str(twitchuserid)+""" - Successfully added you to the userlist. Game was set to FireRed. Note that I store usage data, but I only report on it anonymized or aggregated form."""
+            else:
+                message = '@'+requestername+" UserID: "+str(twitchuserid)+" - Something went wrong or I am in your channel already. If I'm still not there, be sure no words I use (like PP) are banned, and if your channel is set to followers only, please give Mod or VIP privileges."
+            return message
+        except:
+            return "Big error. User ID = "+str(twitchuserid)
 
     def removeChannel(twitchuserid):
         session = Session(engine)
@@ -475,7 +478,7 @@ class Setup():
         token = config['chatbot']['token']
         readbuffer = ''
         server = socket.socket()
-        return connection_data, token, readbuffer, server, token
-
+        return connection_data, token, readbuffer, server
+    
 if __name__ == "__main__":
     main()
