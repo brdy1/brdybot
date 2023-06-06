@@ -826,8 +826,8 @@ def randoEvolutionLookup(parameters):
         traceback.print_exc()
     finally:
         session.close()
-    if generation not in [1,2,3,4,5]:
-        message = "This command is not yet implemented for games higher than generation 4."
+    if generation not in [1,2,3,4,5,6]:
+        message = "This command is not yet implemented for games higher than generation 6."
         return {'message':message,'returnid':monid}
     BasePokemon = aliased(Pokemon)
     VanillaPokemon = aliased(Pokemon)
