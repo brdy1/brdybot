@@ -695,7 +695,6 @@ def randoEvolution(parameters):
                                 first()
     except:
         session.rollback()
-        traceback.print_exc()
         session.close()
         return {'message':"There was an error executing the revo command.",'returnid':monid}
     finally:
@@ -721,7 +720,6 @@ def randoEvolution(parameters):
         except:
             message = 'Error: If your pokemon has multiple evolution methods, please pass the vanilla target evolution Pokemon as an additional paramater. (e.g. "!revo eevee vaporeon")'
             session.rollback()
-            traceback.print_exc()
             session.close()
             return {'message':message,'returnid':monid}
         finally:
@@ -750,13 +748,15 @@ def randoEvolution(parameters):
                         scalar()/100
     except:
         session.rollback()
-        traceback.print_exc()
         session.close()
         return {'message':"There was an error executing the revo command.",'returnid':monid}
     finally:
         session.close()
     if len(randopercents.all()) == 0:
-        message = monName+" does not evolve."
+        message = "I could not find randomizer evolution data for "+monName
+        if multiFlag > 1:
+            message+=" -> "+vanillaName
+        message+="."
     else:
         if limit > randopercents.count():
             limit = randopercents.count()
